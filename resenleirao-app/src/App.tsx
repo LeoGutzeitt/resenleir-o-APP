@@ -8,6 +8,7 @@ import { Jogos } from './pages/Jogos';
 import { Artilharia } from './pages/Artilharia';
 import { Estatisticas } from './pages/Estatisticas';
 import { Transferencias } from './pages/Transferencias';
+import { Mercado } from './pages/Mercado';
 import { Elenco } from './pages/Elenco';
 import { MeuClube } from './pages/MeuClube';
 import { Admin } from './pages/Admin';
@@ -24,6 +25,7 @@ function App() {
             <Route path="jogos" element={<Jogos />} />
             <Route path="artilharia" element={<Artilharia />} />
             <Route path="estatisticas" element={<Estatisticas />} />
+            <Route path="mercado" element={<Mercado />} />
             <Route path="transferencias" element={<Transferencias />} />
             <Route path="elenco/:clubeId" element={<Elenco />} />
             <Route path="meu-clube" element={<MeuClube />} />

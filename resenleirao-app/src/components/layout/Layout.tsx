@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/db';
 import { useState } from 'react';
 import {
-  Trophy, Swords, Goal, BarChart3, ArrowLeftRight,
+  Trophy, Swords, Goal, BarChart3, ArrowLeftRight, Store,
   Shield, LogOut, Menu, X, Home, UserCircle
 } from 'lucide-react';
 
@@ -20,6 +20,7 @@ export function Layout() {
     { path: '/jogos', label: 'Jogos', icon: Swords },
     { path: '/artilharia', label: 'Artilharia', icon: Goal },
     { path: '/estatisticas', label: 'Estatísticas', icon: BarChart3 },
+    { path: '/mercado', label: 'Mercado', icon: Store },
     { path: '/transferencias', label: 'Transferências', icon: ArrowLeftRight },
   ];
 

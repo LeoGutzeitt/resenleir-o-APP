@@ -14,6 +14,7 @@ export interface Clube {
   escudo_url: string | null;
   cor_principal: string;
   usuario_dono_id: string | null;
+  orcamento: number;
 }
 
 export interface Jogador {
@@ -23,7 +24,9 @@ export interface Jogador {
   numero: number;
   clube_id: string;
   foto_url: string | null;
-  status: 'ativo' | 'vendido' | 'emprestado';
+  status: 'ativo' | 'vendido' | 'emprestado' | 'suspenso';
+  valor_mercado: number;
+  jogos_suspensao: number;
 }
 
 export interface Jogo {
@@ -53,9 +56,12 @@ export interface Transferencia {
   jogador_id: string;
   clube_origem_id: string;
   clube_destino_id: string;
+  valor: number;
+  tipo: 'compra' | 'emprestimo' | 'troca' | 'jogador_mais_valor';
+  jogador_troca_id: string | null;
   data: string;
-  tipo: 'venda' | 'emprestimo' | 'troca';
-  status: 'pendente' | 'aprovada' | 'rejeitada';
+  status: 'pendente' | 'aceita' | 'rejeitada';
+  mensagem: string;
 }
 
 export interface TabelaLinha {

@@ -1,0 +1,321 @@
+import { useState } from 'react';
+import { db } from '../lib/db';
+import { useAuth } from '../contexts/AuthContext';
+import { Store, Send, Search, DollarSign } from 'lucide-react';
+
+export function Mercado() {
+  const { user, isDono } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filtroPosicao, setFiltroPosicao] = useState<string>('');
+  const [filtroClube, setFiltroClube] = useState<string>('');
+  const [showProposta, setShowProposta] = useState(false);
+  const [jogadorAlvo, setJogadorAlvo] = useState<string | null>(null);
+  const [tipoProposta, setTipoProposta] = useState<'compra' | 'emprestimo' | 'troca' | 'jogador_mais_valor'>('compra');
+  const [valor, setValor] = useState('');
+  const [jogadorTrocaId, setJogadorTrocaId] = useState('');
+  const [mensagem, setMensagem] = useState('');
+
+  const clubes = db.clubes.listar();
+  const todosJogadores = db.jogadores.listar();
+  const meusClube = user && isDono ? db.clubes.buscarPorDono(user.id) : null;
+
+  const posicoes = ['', 'Goleiro', 'Zagueiro', 'Lateral', 'Meio-Campo', 'Atacante'];
+
+  const jogadoresFiltrados = todosJogadores.filter(j => {
+    if (j.clube_id === meusClube?.id) return false;
+    if (searchTerm && !j.nome.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (filtroPosicao && j.posicao !== filtroPosicao) return false;
+    if (filtroClube && j.clube_id !== filtroClube) return false;
+    return true;
+  });
+
+  const jogadorSelecionado = jogadorAlvo ? db.jogadores.buscarPorId(jogadorAlvo) : null;
+  const clubeJogador = jogadorSelecionado ? db.clubes.buscarPorId(jogadorSelecionado.clube_id) : null;
+
+  const handleProposta = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!jogadorAlvo || !meusClube || !jogadorSelecionado) return;
+
+    const valorNum = parseInt(valor) || 0;
+
+    const result = db.transferencias.criar({
+      jogador_id: jogadorAlvo,
+      clube_origem_id: jogadorSelecionado.clube_id,
+      clube_destino_id: meusClube.id,
+      valor: valorNum,
+      tipo: tipoProposta,
+      jogador_troca_id: jogadorTrocaId || null,
+      data: new Date().toISOString().split('T')[0],
+      status: 'pendente',
+      mensagem: mensagem,
+    });
+
+    if (!result.ok) {
+      alert(result.erro);
+      return;
+    }
+
+    setShowProposta(false);
+    setJogadorAlvo(null);
+    setValor('');
+    setJogadorTrocaId('');
+    setMensagem('');
+    setTipoProposta('compra');
+  };
+
+  const formatValor = (v: number) => {
+    if (v >= 1000000) return `R$ ${(v / 1000000).toFixed(1)}M`;
+    if (v >= 1000) return `R$ ${(v / 1000).toFixed(0)}K`;
+    return `R$ ${v}`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Mercado de Transferências</h1>
+          {meusClube && (
+            <p className="text-sm text-gray-400 mt-1">
+              Orçamento: <span className="text-green-500 font-bold">{formatValor(meusClube.orcamento)}</span>
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex flex-wrap gap-3">
+        <div className="flex-1 min-w-[200px] relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Buscar jogador..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          />
+        </div>
+        <select
+          value={filtroPosicao}
+          onChange={(e) => setFiltroPosicao(e.target.value)}
+          className="px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+        >
+          <option value="">Todas posições</option>
+          {posicoes.slice(1).map(p => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+        <select
+          value={filtroClube}
+          onChange={(e) => setFiltroClube(e.target.value)}
+          className="px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+        >
+          <option value="">Todos clubes</option>
+          {clubes.filter(c => c.id !== meusClube?.id).map(c => (
+            <option key={c.id} value={c.id}>{c.nome}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Lista de Jogadores */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {jogadoresFiltrados.map(jogador => {
+          const clube = db.clubes.buscarPorId(jogador.clube_id);
+          return (
+            <div
+              key={jogador.id}
+              className="bg-gray-900 rounded-xl p-4 border border-gray-800 hover:border-yellow-500/50 transition-colors cursor-pointer"
+              onClick={() => {
+                if (isDono && meusClube) {
+                  setJogadorAlvo(jogador.id);
+                  setShowProposta(true);
+                }
+              }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center font-bold text-sm">
+                    {jogador.numero}
+                  </div>
+                  <div>
+                    <p className="font-medium">{jogador.nome}</p>
+                    <p className="text-xs text-gray-400">{jogador.posicao}</p>
+                  </div>
+                </div>
+                <span className="font-bold text-yellow-500 text-sm">{formatValor(jogador.valor_mercado)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className="w-4 h-4 rounded-full flex items-center justify-center text-white font-bold"
+                    style={{ backgroundColor: clube?.cor_principal || '#666' }}
+                  >
+                    {clube?.nome.charAt(0)}
+                  </div>
+                  {clube?.nome}
+                </div>
+                {isDono && meusClube && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setJogadorAlvo(jogador.id);
+                      setShowProposta(true);
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500/10 text-yellow-500 rounded-lg text-xs font-medium hover:bg-yellow-500/20 transition-colors"
+                  >
+                    <Send className="w-3 h-3" />
+                    Propor
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {jogadoresFiltrados.length === 0 && (
+        <div className="bg-gray-900 rounded-xl p-8 border border-gray-800 text-center">
+          <Store className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-400">Nenhum jogador encontrado</p>
+        </div>
+      )}
+
+      {/* Modal Proposta */}
+      {showProposta && jogadorSelecionado && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-xl p-6 w-full max-w-lg border border-gray-800 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-semibold mb-2">Nova Proposta</h2>
+            
+            {/* Jogador Alvo */}
+            <div className="bg-gray-800 rounded-lg p-3 mb-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center font-bold">
+                {jogadorSelecionado.numero}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">{jogadorSelecionado.nome}</p>
+                <p className="text-sm text-gray-400">{jogadorSelecionado.posicao} - {clubeJogador?.nome}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Valor de mercado</p>
+                <p className="font-bold text-yellow-500">{formatValor(jogadorSelecionado.valor_mercado)}</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleProposta} className="space-y-4">
+              {/* Tipo de Proposta */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Tipo de Proposta</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['compra', 'emprestimo', 'troca', 'jogador_mais_valor'] as const).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setTipoProposta(t)}
+                      className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        tipoProposta === t
+                          ? 'bg-yellow-500 text-black'
+                          : 'bg-gray-800 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {t === 'compra' ? '💰 Compra' :
+                       t === 'emprestimo' ? '📋 Empréstimo' :
+                       t === 'troca' ? '🔄 Troca' : '🤝 Jogador + Valor'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Valor */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Valor {tipoProposta === 'emprestimo' ? '(opcional)' : ''}
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input
+                    type="number"
+                    value={valor}
+                    onChange={(e) => setValor(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                    placeholder={tipoProposta === 'emprestimo' ? '0 (sem custo)' : 'Ex: 5000000'}
+                    min="0"
+                    step="100000"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Seu orçamento: {meusClube ? formatValor(meusClube.orcamento) : 'R$ 0'}
+                </p>
+              </div>
+
+              {/* Jogador para Troca */}
+              {(tipoProposta === 'troca' || tipoProposta === 'jogador_mais_valor') && meusClube && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    {tipoProposta === 'troca' ? 'Jogador para Troca' : 'Jogador + Valor - Selecione seu jogador'}
+                  </label>
+                  <select
+                    value={jogadorTrocaId}
+                    onChange={(e) => setJogadorTrocaId(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  >
+                    <option value="">Selecione um jogador</option>
+                    {db.jogadores.listar(meusClube.id).map(j => (
+                      <option key={j.id} value={j.id}>
+                        {j.nome} - {j.posicao} ({formatValor(j.valor_mercado)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Mensagem */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Mensagem (opcional)</label>
+                <textarea
+                  value={mensagem}
+                  onChange={(e) => setMensagem(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 resize-none"
+                  rows={2}
+                  placeholder="Ex: Bons termos para negócio..."
+                />
+              </div>
+
+              {meusClube && (
+                <div className="bg-gray-800 rounded-lg p-3 text-sm">
+                  <p className="text-gray-400">Resumo da proposta:</p>
+                  <ul className="mt-1 space-y-1">
+                    <li className="text-gray-300">
+                      • Enviando: <span className="text-yellow-500">{formatValor(parseInt(valor) || 0)}</span>
+                      {jogadorTrocaId && ` + ${db.jogadores.buscarPorId(jogadorTrocaId)?.nome}`}
+                    </li>
+                    <li className="text-gray-300">
+                      • Recebendo: <span className="text-green-500">{jogadorSelecionado.nome}</span>
+                    </li>
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors"
+                >
+                  Enviar Proposta
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProposta(false);
+                    setJogadorAlvo(null);
+                  }}
+                  className="px-4 py-3 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

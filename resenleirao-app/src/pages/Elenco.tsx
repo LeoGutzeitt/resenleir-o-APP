@@ -36,6 +36,8 @@ export function Elenco() {
       clube_id: clubeId,
       foto_url: null,
       status: 'ativo',
+      valor_mercado: 10000000,
+      jogos_suspensao: 0,
     });
     setShowAdd(false);
     setNovoNome('');
