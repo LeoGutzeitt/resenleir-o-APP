@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, Plus, Trash2, Edit3, Save, X, DollarSign, Users } from 'lucide-react';
+import { Shield, Plus, Trash2, Edit3, Save, X, DollarSign, Users, CheckCircle, Upload } from 'lucide-react';
 
 export function Admin() {
   const { isAdmin } = useAuth();
@@ -9,6 +9,7 @@ export function Admin() {
   const [showAddClube, setShowAddClube] = useState(false);
   const [novoClubeNome, setNovoClubeNome] = useState('');
   const [novoClubeCor, setNovoClubeCor] = useState('#FF4500');
+  const [novoClubeEscudo, setNovoClubeEscudo] = useState<File | null>(null);
   const [editingClubeId, setEditingClubeId] = useState<string | null>(null);
   const [editClubeNome, setEditClubeNome] = useState('');
   const [editClubeOrcamento, setEditClubeOrcamento] = useState('');
@@ -31,18 +32,32 @@ export function Admin() {
     );
   }
 
-  const handleAddClube = (e: React.FormEvent) => {
+  const handleAddClube = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!novoClubeNome) return;
+
+    let escudo_url: string | null = null;
+
+    // Upload do escudo se houver
+    if (novoClubeEscudo) {
+      const reader = new FileReader();
+      escudo_url = await new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(novoClubeEscudo);
+      });
+    }
+
     db.clubes.criar({
       nome: novoClubeNome,
-      escudo_url: null,
+      escudo_url,
       cor_principal: novoClubeCor,
       usuario_dono_id: null,
       orcamento: 100000000,
     });
     setShowAddClube(false);
     setNovoClubeNome('');
+    setNovoClubeCor('#FF4500');
+    setNovoClubeEscudo(null);
   };
 
   const handleRemoveClube = (id: string) => {
@@ -112,13 +127,11 @@ export function Admin() {
     const jogo = db.jogos.buscarPorId(jogoId);
     if (!jogo) return;
 
-    // Remover estatísticas antigas do jogo
     const statsAntigas = db.estatisticas.listarPorJogo(jogoId);
     statsAntigas.forEach(stat => {
       db.estatisticas.remover(stat.id);
     });
 
-    // Criar novas estatísticas e processar suspensões
     estatisticasJogo.forEach((valores, jogadorId) => {
       if (valores.gols > 0 || valores.assistencias > 0 || valores.cartoes_amarelos > 0 || valores.cartoes_vermelhos > 0) {
         db.estatisticas.criar({
@@ -130,26 +143,15 @@ export function Admin() {
           cartoes_vermelhos: valores.cartoes_vermelhos
         });
 
-        // Processar suspensões
         const jogador = db.jogadores.buscarPorId(jogadorId);
         if (jogador) {
           let jogosSuspensao = 0;
-          
-          // Lógica de cartões:
-          // 3 amarelos = 1 jogo de suspensão
-          // 1 vermelho = 1 jogo de suspensão
-          // Se tem 2 amarelos + 1 vermelho no mesmo jogo, conta como 1 amarelo + 1 vermelho (2 jogos de suspensão)
-          
           const cartoesAmarelos = valores.cartoes_amarelos;
           const cartoesVermelhos = valores.cartoes_vermelhos;
           
-          // Calcular suspensões por amarelos (a cada 3 amarelos = 1 suspensão)
           jogosSuspensao += Math.floor(cartoesAmarelos / 3);
-          
-          // Calcular suspensões por vermelhos
           jogosSuspensao += cartoesVermelhos;
           
-          // Atualizar jogador com suspensão
           if (jogosSuspensao > 0) {
             db.jogadores.atualizar(jogadorId, {
               jogos_suspensao: jogador.jogos_suspensao + jogosSuspensao,
@@ -175,6 +177,23 @@ export function Admin() {
 
   const handleRemoveEstatistica = (id: string) => {
     db.estatisticas.remover(id);
+  };
+
+  const handleCumpriuSuspensao = (jogadorId: string) => {
+    const jogador = db.jogadores.buscarPorId(jogadorId);
+    if (jogador && jogador.jogos_suspensao > 0) {
+      const novaSuspensao = jogador.jogos_suspensao - 1;
+      if (novaSuspensao <= 0) {
+        db.jogadores.atualizar(jogadorId, {
+          jogos_suspensao: 0,
+          status: 'ativo'
+        });
+      } else {
+        db.jogadores.atualizar(jogadorId, {
+          jogos_suspensao: novaSuspensao
+        });
+      }
+    }
   };
 
   return (
@@ -232,6 +251,17 @@ export function Admin() {
                       value={novoClubeCor}
                       onChange={(e) => setNovoClubeCor(e.target.value)}
                       className="w-full h-12 rounded-lg cursor-pointer bg-gray-800 border border-gray-700"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Escudo do Clube (opcional)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setNovoClubeEscudo(e.target.files?.[0] || null)}
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-yellow-500 file:text-black file:font-medium file:cursor-pointer hover:file:bg-yellow-400"
                     />
                   </div>
                   <div className="flex gap-3 pt-2">
@@ -292,12 +322,20 @@ export function Admin() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-3">
-                          <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                            style={{ backgroundColor: clube.cor_principal }}
-                          >
-                            {clube.nome.charAt(0)}
-                          </div>
+                          {clube.escudo_url ? (
+                            <img
+                              src={clube.escudo_url}
+                              alt={clube.nome}
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
+                              style={{ backgroundColor: clube.cor_principal }}
+                            >
+                              {clube.nome.charAt(0)}
+                            </div>
+                          )}
                           <span className="font-medium">{clube.nome}</span>
                         </div>
                       )}
@@ -377,7 +415,6 @@ export function Admin() {
                   const casa = db.clubes.buscarPorId(jogo.clube_casa_id);
                   const fora = db.clubes.buscarPorId(jogo.clube_fora_id);
                   const isEditing = editingJogoId === jogo.id;
-                  const isEditingStats = jogoSelecionado === jogo.id;
                   
                   return (
                     <tr key={jogo.id} className="border-b border-gray-800/50 hover:bg-gray-800/50 transition-colors">
@@ -486,7 +523,6 @@ export function Admin() {
         </div>
       )}
 
-      {/* Modal de Edição de Estatísticas */}
       {jogoSelecionado && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 rounded-xl p-6 w-full max-w-4xl border border-gray-800 max-h-[90vh] overflow-y-auto">
@@ -515,7 +551,6 @@ export function Admin() {
               return (
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-6">
-                    {/* Time Casa */}
                     <div>
                       <h4 className="text-md font-semibold mb-3 flex items-center gap-2">
                         <div
@@ -585,7 +620,6 @@ export function Admin() {
                       </div>
                     </div>
 
-                    {/* Time Fora */}
                     <div>
                       <h4 className="text-md font-semibold mb-3 flex items-center gap-2">
                         <div
@@ -716,13 +750,25 @@ export function Admin() {
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          jog.status === 'ativo' ? 'bg-green-500/20 text-green-500' :
-                          jog.status === 'vendido' ? 'bg-red-500/20 text-red-500' :
-                          'bg-yellow-500/20 text-yellow-500'
-                        }`}>
-                          {jog.status}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            jog.status === 'ativo' ? 'bg-green-500/20 text-green-500' :
+                            jog.status === 'vendido' ? 'bg-red-500/20 text-red-500' :
+                            jog.status === 'suspenso' ? 'bg-orange-500/20 text-orange-500' :
+                            'bg-yellow-500/20 text-yellow-500'
+                          }`}>
+                            {jog.status === 'suspenso' ? `Suspenso (${jog.jogos_suspensao} jogos)` : jog.status}
+                          </span>
+                          {jog.status === 'suspenso' && jog.jogos_suspensao > 0 && (
+                            <button
+                              onClick={() => handleCumpriuSuspensao(jog.id)}
+                              className="p-1 text-green-500 hover:text-green-400 transition-colors"
+                              title="Marcar suspensão como cumprida"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

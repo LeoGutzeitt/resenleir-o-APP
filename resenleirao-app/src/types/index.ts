@@ -39,6 +39,7 @@ export interface Jogo {
   fase: 'grupos' | 'repescagem' | 'quartas' | 'semi' | 'final';
   data: string;
   status: 'agendado' | 'realizado';
+  chaveamento?: string;
 }
 
 export interface EstatisticaJogador {
@@ -94,4 +95,14 @@ export interface AssistenteRanking {
   clube_nome: string;
   clube_id: string;
   assistencias: number;
+}
+
+export interface Noticia {
+  id: string;
+  titulo: string;
+  conteudo: string;
+  clube_id: string;
+  data: string;
+  destaque: boolean;
+  imagem_url: string | null;
 }

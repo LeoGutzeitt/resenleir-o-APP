@@ -12,6 +12,8 @@ import { Mercado } from './pages/Mercado';
 import { Elenco } from './pages/Elenco';
 import { MeuClube } from './pages/MeuClube';
 import { Admin } from './pages/Admin';
+import { Draft } from './pages/Draft';
+import { Noticias } from './pages/Noticias';
 
 function App() {
   return (
@@ -30,6 +32,8 @@ function App() {
             <Route path="elenco/:clubeId" element={<Elenco />} />
             <Route path="meu-clube" element={<MeuClube />} />
             <Route path="admin" element={<Admin />} />
+            <Route path="draft" element={<Draft />} />
+            <Route path="noticias" element={<Noticias />} />
           </Route>
         </Routes>
       </AuthProvider>

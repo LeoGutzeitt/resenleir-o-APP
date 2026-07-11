@@ -1,1 +1,529 @@
 @import "tailwindcss";
+
+/* ============== RESENLEIRÃO DESIGN SYSTEM ============== */
+/* Visual brasileiro: quadrado, linhas retas, cores vibrantes */
+
+:root {
+  /* Cores principais - inspiradas no Brasil e na logo */
+  --verde-brasil: #009739;
+  --amarelo-brasil: #FEDD00;
+  --azul-brasil: #012169;
+  --verde-vivo: #00C851;
+  --amarelo-vivo: #FFEB00;
+  --azul-vivo: #0055B8;
+  
+  /* Cores do sistema - baseado na logo */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-card: #1a1a1a;
+  --bg-hover: #222222;
+  --border-color: #2a2a2a;
+  --border-hover: #3a3a3a;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --text-muted: #707070;
+  --accent: #FEDD00;
+  --accent-hover: #FFEB00;
+  --success: #009739;
+  --success-hover: #00C851;
+  --danger: #dc2626;
+  --warning: #f59e0b;
+  --info: #012169;
+  --info-hover: #0055B8;
+}
+
+/* Reset e base */
+* {
+  border-radius: 0 !important;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============== HEADER ============== */
+header {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%) !important;
+  border-bottom: 3px solid var(--accent);
+  box-shadow: 0 4px 20px rgba(254, 221, 0, 0.15);
+}
+
+header a {
+  transition: all 0.2s ease;
+}
+
+header nav a:hover {
+  background-color: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+header nav a.active {
+  background-color: rgba(254, 221, 0, 0.1);
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+
+/* ============== CARDS E CONTAINERS ============== */
+.bg-gray-900 {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.bg-gray-800 {
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color);
+}
+
+.bg-gray-800:hover {
+  border-color: var(--border-hover);
+}
+
+/* ============== BOTÕES ============== */
+button {
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border-radius: 0 !important;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Botão primário (amarelo) */
+button.bg-yellow-500,
+button.bg-yellow-600 {
+  background-color: var(--accent) !important;
+  color: #000 !important;
+  border: 2px solid var(--accent);
+}
+
+button.bg-yellow-500:hover,
+button.bg-yellow-600:hover {
+  background-color: var(--accent-hover) !important;
+  border-color: var(--accent-hover);
+}
+
+/* Botão de sucesso (verde) */
+button.bg-green-500,
+button.bg-green-600 {
+  background-color: var(--success) !important;
+  border: 2px solid var(--success);
+}
+
+button.bg-green-500:hover,
+button.bg-green-600:hover {
+  background-color: var(--success-hover) !important;
+  border-color: var(--success-hover);
+}
+
+/* Botão de informação (azul) */
+button.bg-blue-500,
+button.bg-blue-600 {
+  background-color: var(--info) !important;
+  border: 2px solid var(--info);
+}
+
+button.bg-blue-500:hover,
+button.bg-blue-600:hover {
+  background-color: var(--info-hover) !important;
+  border-color: var(--info-hover);
+}
+
+/* Botão de perigo (vermelho) */
+button.bg-red-500,
+button.bg-red-600 {
+  background-color: var(--danger) !important;
+  border: 2px solid var(--danger);
+}
+
+button.bg-red-500:hover,
+button.bg-red-600:hover {
+  background-color: #b91c1c !important;
+  border-color: #b91c1c;
+}
+
+/* Botão secundário (cinza) */
+button.bg-gray-700,
+button.bg-gray-800 {
+  background-color: var(--bg-secondary) !important;
+  border: 2px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+button.bg-gray-700:hover,
+button.bg-gray-800:hover {
+  background-color: var(--bg-hover) !important;
+  border-color: var(--border-hover);
+}
+
+/* ============== INPUTS ============== */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+select,
+textarea {
+  background-color: var(--bg-secondary) !important;
+  border: 2px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: 0 !important;
+  transition: all 0.2s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(254, 221, 0, 0.1);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* ============== TABELAS ============== */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+thead {
+  background-color: var(--bg-secondary);
+  border-bottom: 2px solid var(--accent);
+}
+
+thead th {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  padding: 1rem;
+  text-align: left;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+tbody td {
+  padding: 1rem;
+}
+
+/* ============== BADGES E TAGS ============== */
+.bg-yellow-500\/20 {
+  background-color: rgba(254, 221, 0, 0.2) !important;
+}
+
+.text-yellow-500 {
+  color: var(--accent) !important;
+}
+
+.bg-green-500\/20 {
+  background-color: rgba(0, 151, 57, 0.2) !important;
+}
+
+.text-green-500 {
+  color: var(--success) !important;
+}
+
+.bg-red-500\/20 {
+  background-color: rgba(220, 38, 38, 0.2) !important;
+}
+
+.text-red-500 {
+  color: var(--danger) !important;
+}
+
+.bg-blue-500\/20 {
+  background-color: rgba(1, 33, 105, 0.2) !important;
+}
+
+.text-blue-500 {
+  color: var(--info) !important;
+}
+
+/* ============== GRADIENTES BRASILEIROS ============== */
+.bg-gradient-brazil {
+  background: linear-gradient(135deg, var(--verde-brasil) 0%, var(--amarelo-brasil) 50%, var(--azul-brasil) 100%) !important;
+}
+
+.bg-gradient-brazil-subtle {
+  background: linear-gradient(135deg, rgba(0, 151, 57, 0.1) 0%, rgba(254, 221, 0, 0.1) 50%, rgba(1, 33, 105, 0.1) 100%) !important;
+}
+
+/* ============== EFEITOS DE DESTAQUE ============== */
+.highlight-green {
+  box-shadow: 0 0 15px rgba(0, 151, 57, 0.3) !important;
+}
+
+.highlight-yellow {
+  box-shadow: 0 0 15px rgba(254, 221, 0, 0.3) !important;
+}
+
+.highlight-blue {
+  box-shadow: 0 0 15px rgba(1, 33, 105, 0.3) !important;
+}
+
+/* ============== SCROLLBAR ============== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-hover);
+  border: 1px solid var(--border-color);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ============== UTILITÁRIOS ============== */
+.border {
+  border-color: var(--border-color) !important;
+}
+
+.border-yellow-500 {
+  border-color: var(--accent) !important;
+}
+
+.border-green-500 {
+  border-color: var(--success) !important;
+}
+
+.border-red-500 {
+  border-color: var(--danger) !important;
+}
+
+.border-blue-500 {
+  border-color: var(--info) !important;
+}
+
+/* Sombras */
+.shadow-lg {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Gradientes */
+.bg-gradient-to-b {
+  background: linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary));
+}
+
+/* ============== ANIMAÇÕES ============== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.space-y-6 > * {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ============== RESPONSIVIDADE ============== */
+@media (max-width: 768px) {
+  header {
+    border-bottom-width: 2px;
+  }
+  
+  button {
+    letter-spacing: 0;
+  }
+  
+  table {
+    font-size: 0.875rem;
+  }
+  
+  thead th,
+  tbody td {
+    padding: 0.75rem;
+  }
+}
+
+/* ============== ACESSIBILIDADE ============== */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ============== LOADING ============== */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ============== ESPECÍFICO DO RESENLEIRÃO ============== */
+/* Títulos com estilo brasileiro */
+h1, h2, h3 {
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  text-transform: uppercase;
+}
+
+h1 {
+  font-size: 2rem;
+  border-left: 4px solid var(--accent);
+  padding-left: 1rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+  border-left: 3px solid var(--accent);
+  padding-left: 0.75rem;
+}
+
+h3 {
+  font-size: 1.25rem;
+  border-left: 2px solid var(--accent);
+  padding-left: 0.5rem;
+}
+
+/* Cards de destaque */
+.border-yellow-500\/50 {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 20px rgba(254, 221, 0, 0.2);
+}
+
+/* Números e estatísticas */
+.font-bold {
+  font-weight: 800;
+}
+
+.text-2xl,
+.text-3xl {
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+/* Links */
+a {
+  transition: all 0.2s ease;
+}
+
+a:hover {
+  color: var(--accent);
+}
+
+/* File input */
+input[type="file"] {
+  cursor: pointer;
+}
+
+input[type="file"]::file-selector-button {
+  background-color: var(--accent);
+  color: #000;
+  padding: 0.5rem 1rem;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 1rem;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background-color: var(--accent-hover);
+}
+
+/* Checkbox e Radio */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Range input */
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+/* Color picker */
+input[type="color"] {
+  cursor: pointer;
+  border: 2px solid var(--border-color) !important;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+}
+
+/* ============== MODO VISITANTE ============== */
+.text-gray-500 {
+  color: var(--text-muted) !important;
+}
+
+.text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+.text-gray-300 {
+  color: var(--text-primary) !important;
+}
+
+/* ============== GRID E LAYOUT ============== */
+.grid {
+  gap: 1rem;
+}
+
+/* ============== TRANSITION SUAVE ============== */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* Manter transições de transform e opacity */
+button,
+a,
+input,
+select,
+textarea {
+  transition-property: all;
+}

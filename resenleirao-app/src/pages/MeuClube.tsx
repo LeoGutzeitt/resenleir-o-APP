@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Swords, Goal, ArrowLeftRight } from 'lucide-react';
+import { Users, Swords, Goal, ArrowLeftRight, Camera, Save, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function MeuClube() {
   const { user } = useAuth();
+  const [showEditEscudo, setShowEditEscudo] = useState(false);
+  const [novoEscudo, setNovoEscudo] = useState<File | null>(null);
 
   if (!user) return null;
 
@@ -23,16 +26,47 @@ export function MeuClube() {
   const minhaPosicao = tabela.find(t => t.clube_id === meusClube.id);
   const artilharia = db.views.artilharia().filter(a => a.clube_id === meusClube.id);
 
+  const handleSalvarEscudo = async () => {
+    if (!novoEscudo) return;
+
+    const reader = new FileReader();
+    const escudo_url = await new Promise((resolve) => {
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(novoEscudo);
+    });
+
+    db.clubes.atualizar(meusClube.id, { escudo_url: escudo_url as string });
+    setShowEditEscudo(false);
+    setNovoEscudo(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
         <div className="flex items-center gap-4">
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl"
-            style={{ backgroundColor: meusClube.cor_principal }}
-          >
-            {meusClube.nome.charAt(0)}
+          <div className="relative">
+            {meusClube.escudo_url ? (
+              <img
+                src={meusClube.escudo_url}
+                alt={meusClube.nome}
+                className="w-16 h-16 object-cover"
+              />
+            ) : (
+              <div
+                className="w-16 h-16 flex items-center justify-center text-white font-bold text-xl"
+                style={{ backgroundColor: meusClube.cor_principal }}
+              >
+                {meusClube.nome.charAt(0)}
+              </div>
+            )}
+            <button
+              onClick={() => setShowEditEscudo(true)}
+              className="absolute -bottom-2 -right-2 p-1.5 bg-yellow-500 text-black hover:bg-yellow-400 transition-colors"
+              title="Editar escudo"
+            >
+              <Camera className="w-4 h-4" />
+            </button>
           </div>
           <div>
             <h1 className="text-2xl font-bold">{meusClube.nome}</h1>
@@ -44,6 +78,62 @@ export function MeuClube() {
           </div>
         </div>
       </div>
+
+      {/* Modal Editar Escudo */}
+      {showEditEscudo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md border border-gray-800">
+            <h2 className="text-lg font-semibold mb-4">Editar Escudo</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-center">
+                {meusClube.escudo_url ? (
+                  <img
+                    src={meusClube.escudo_url}
+                    alt={meusClube.nome}
+                    className="w-24 h-24 object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-24 h-24 flex items-center justify-center text-white font-bold text-3xl"
+                    style={{ backgroundColor: meusClube.cor_principal }}
+                  >
+                    {meusClube.nome.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Novo Escudo
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setNovoEscudo(e.target.files?.[0] || null)}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-white file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-yellow-500 file:text-black file:font-medium file:cursor-pointer hover:file:bg-yellow-400"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSalvarEscudo}
+                  disabled={!novoEscudo}
+                  className="flex-1 py-3 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-colors disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
+                >
+                  Salvar Escudo
+                </button>
+                <button
+                  onClick={() => {
+                    setShowEditEscudo(false);
+                    setNovoEscudo(null);
+                  }}
+                  className="px-4 py-3 bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Links Rápidos */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -89,12 +179,20 @@ export function MeuClube() {
             return (
               <div key={jogo.id} className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                    style={{ backgroundColor: adversario?.cor_principal || '#666' }}
-                  >
-                    {adversario?.nome.charAt(0)}
-                  </div>
+                  {adversario?.escudo_url ? (
+                    <img
+                      src={adversario.escudo_url}
+                      alt={adversario.nome}
+                      className="w-8 h-8 object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs"
+                      style={{ backgroundColor: adversario?.cor_principal || '#666' }}
+                    >
+                      {adversario?.nome.charAt(0)}
+                    </div>
+                  )}
                   <div>
                     <p className="font-medium">{isCasa ? `${meusClube.nome} vs ${adversario?.nome}` : `${adversario?.nome} vs ${meusClube.nome}`}</p>
                     <p className="text-sm text-gray-500">{isCasa ? 'Em casa' : 'Fora'}</p>
@@ -114,15 +212,29 @@ export function MeuClube() {
             <h2 className="text-lg font-semibold">Artilheiros</h2>
           </div>
           <div className="divide-y divide-gray-800">
-            {artilharia.slice(0, 5).map((j, idx) => (
-              <div key={j.jogador_id} className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500 w-6">{idx + 1}º</span>
-                  <span className="font-medium">{j.jogador_nome}</span>
+            {artilharia.slice(0, 5).map((j, idx) => {
+              const jogador = db.jogadores.buscarPorId(j.jogador_id);
+              return (
+                <div key={j.jogador_id} className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500 w-6">{idx + 1}º</span>
+                    {jogador?.foto_url ? (
+                      <img
+                        src={jogador.foto_url}
+                        alt={jogador.nome}
+                        className="w-8 h-8 object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs bg-gray-800">
+                        {jogador?.numero || '?'}
+                      </div>
+                    )}
+                    <span className="font-medium">{j.jogador_nome}</span>
+                  </div>
+                  <span className="font-bold text-yellow-500">{j.gols} gols</span>
                 </div>
-                <span className="font-bold text-yellow-500">{j.gols} gols</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

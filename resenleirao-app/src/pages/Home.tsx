@@ -1,20 +1,51 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../lib/db';
 import { Trophy, Swords, Goal, BarChart3 } from 'lucide-react';
+import type { TabelaLinha, ArtilheiroRanking, Jogo } from '../types';
 
 export function Home() {
-  const tabela = db.views.tabela();
-  const artilharia = db.views.artilharia();
-  const jogosRecentes = db.jogos.listar().filter(j => j.status === 'realizado').slice(0, 3);
+  const [tabela, setTabela] = useState<TabelaLinha[]>([]);
+  const [artilharia, setArtilharia] = useState<ArtilheiroRanking[]>([]);
+  const [jogosRecentes, setJogosRecentes] = useState<Jogo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [tabelaData, artilhariaData, jogosData] = await Promise.all([
+        db.views.tabela(),
+        db.views.artilharia(),
+        db.jogos.listar()
+      ]);
+      
+      setTabela(tabelaData);
+      setArtilharia(artilhariaData);
+      setJogosRecentes(jogosData.filter(j => j.status === 'realizado').slice(0, 3));
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
 
   const lider = tabela[0];
   const artilheiro = artilharia[0];
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-yellow-500">Carregando...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Hero */}
-      <div className="bg-gradient-to-r from-yellow-500/10 to-gray-900 rounded-2xl p-8 border border-yellow-500/20">
-        <h1 className="text-3xl font-bold text-yellow-500 mb-2">Resenleirão 2026</h1>
+      <div className="bg-gradient-to-r from-green-500/10 via-yellow-500/10 to-blue-500/10 rounded-2xl p-8 border border-yellow-500/20">
+        <div className="flex items-center gap-4 mb-4">
+          <img src="/resenleiraologo.png" alt="Resenleirão" className="w-16 h-16" />
+          <h1 className="text-3xl font-bold text-yellow-500">Resenleirão 2026</h1>
+        </div>
         <p className="text-gray-400">Acompanhe todas as emoções do campeonato dos amigos</p>
       </div>
 
@@ -65,7 +96,7 @@ export function Home() {
               const fora = db.clubes.buscarPorId(jogo.clube_fora_id);
               return (
                 <div key={jogo.id} className="text-sm text-gray-400">
-                  {casa?.nome} {jogo.gols_casa} x {jogo.gols_fora} {fora?.nome}
+                  {casa?.then(c => c?.nome)} {jogo.gols_casa} x {jogo.gols_fora} {fora?.then(f => f?.nome)}
                 </div>
               );
             })}

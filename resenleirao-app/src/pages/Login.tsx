@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Trophy, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -11,7 +11,7 @@ export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro('');
 
@@ -20,7 +20,7 @@ export function Login() {
       return;
     }
 
-    const success = login(email, senha);
+    const success = await login(email, senha);
     if (success) {
       navigate('/');
     } else {
@@ -32,7 +32,7 @@ export function Login() {
     <div className="min-h-[80vh] flex items-center justify-center">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <img src="/resenleiraologo.png" alt="Resenleirão" className="w-16 h-16 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-yellow-500">Resenleirão</h1>
           <p className="text-gray-400 mt-2">Faça login para continuar</p>
         </div>
@@ -85,7 +85,7 @@ export function Login() {
           <div className="text-center text-sm text-gray-500">
             <p>Contas de teste:</p>
             <p className="mt-1">Admin: admin@resenleirao.com</p>
-            <p>Donos: dono1@resenleirao.com até dono10@resenleirao.com</p>
+            <p>Donos: leo@resenleirao.com, felipe@resenleirao.com, diego@resenleirao.com, pedro@resenleirao.com, berenguer@resenleirao.com, bruno@resenleirao.com, yves@resenleirao.com, adriano@resenleirao.com, jhonny@resenleirao.com, piscina@resenleirao.com</p>
             <p className="mt-1 text-gray-600">Senha: 123456</p>
           </div>
         </form>

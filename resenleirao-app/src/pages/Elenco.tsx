@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Plus, Trash2 } from 'lucide-react';
+import { Users, Plus, Trash2, Camera } from 'lucide-react';
 
 export function Elenco() {
   const { clubeId } = useParams<{ clubeId: string }>();
@@ -11,6 +11,7 @@ export function Elenco() {
   const [novoNome, setNovoNome] = useState('');
   const [novaPosicao, setNovaPosicao] = useState<'Goleiro' | 'Zagueiro' | 'Lateral' | 'Meio-Campo' | 'Atacante'>('Atacante');
   const [novoNumero, setNovoNumero] = useState('');
+  const [fotoJogador, setFotoJogador] = useState<File | null>(null);
 
   const clube = db.clubes.buscarPorId(clubeId || '');
   const jogadores = clubeId ? db.jogadores.listar(clubeId) : [];
@@ -26,15 +27,27 @@ export function Elenco() {
     );
   }
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!novoNome || !novoNumero || !clubeId) return;
+
+    let foto_url: string | null = null;
+
+    // Upload da foto se houver
+    if (fotoJogador) {
+      const reader = new FileReader();
+      foto_url = await new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(fotoJogador);
+      });
+    }
+
     db.jogadores.criar({
       nome: novoNome,
       posicao: novaPosicao,
       numero: parseInt(novoNumero),
       clube_id: clubeId,
-      foto_url: null,
+      foto_url,
       status: 'ativo',
       valor_mercado: 10000000,
       jogos_suspensao: 0,
@@ -42,6 +55,7 @@ export function Elenco() {
     setShowAdd(false);
     setNovoNome('');
     setNovoNumero('');
+    setFotoJogador(null);
   };
 
   const handleRemove = (id: string) => {
@@ -118,6 +132,18 @@ export function Elenco() {
                   required
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Foto do Jogador (opcional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setFotoJogador(e.target.files?.[0] || null)}
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-yellow-500 file:text-black file:font-medium file:cursor-pointer hover:file:bg-yellow-400"
+                />
+              </div>
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
@@ -149,9 +175,17 @@ export function Elenco() {
           {jogadores.map(jogador => (
             <div key={jogador.id} className="bg-gray-900 rounded-xl p-4 border border-gray-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center font-bold text-sm">
-                  {jogador.numero}
-                </div>
+                {jogador.foto_url ? (
+                  <img
+                    src={jogador.foto_url}
+                    alt={jogador.nome}
+                    className="w-10 h-10 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center font-bold text-sm">
+                    {jogador.numero}
+                  </div>
+                )}
                 <div>
                   <p className="font-medium">{jogador.nome}</p>
                   <p className="text-sm text-gray-400">{jogador.posicao}</p>

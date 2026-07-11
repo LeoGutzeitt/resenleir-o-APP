@@ -4,7 +4,7 @@ import { db } from '../../lib/db';
 import { useState } from 'react';
 import {
   Trophy, Swords, Goal, BarChart3, ArrowLeftRight, Store,
-  Shield, LogOut, Menu, X, Home, UserCircle
+  Shield, LogOut, Menu, X, Home, UserCircle, Users, Newspaper
 } from 'lucide-react';
 
 export function Layout() {
@@ -22,6 +22,8 @@ export function Layout() {
     { path: '/estatisticas', label: 'Estatísticas', icon: BarChart3 },
     { path: '/mercado', label: 'Mercado', icon: Store },
     { path: '/transferencias', label: 'Transferências', icon: ArrowLeftRight },
+    { path: '/draft', label: 'Draft', icon: Users },
+    { path: '/noticias', label: 'Notícias', icon: Newspaper },
   ];
 
   const handleLogout = () => {
@@ -38,7 +40,7 @@ export function Layout() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2">
-              <Trophy className="w-8 h-8 text-yellow-500" />
+              <img src="/resenleiraologo.png" alt="Resenleirão" className="w-10 h-10" />
               <span className="text-xl font-bold text-yellow-500">Resenleirão</span>
             </Link>
 

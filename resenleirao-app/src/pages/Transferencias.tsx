@@ -50,24 +50,51 @@ export function Transferencias() {
           <div className="flex items-start gap-4 flex-1">
             {/* Clubes envolvidos */}
             <div className="flex flex-col items-center">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                style={{ backgroundColor: origem?.cor_principal || '#666' }}
-              >
-                {origem?.nome.charAt(0)}
-              </div>
+              {origem?.escudo_url ? (
+                <img
+                  src={origem.escudo_url}
+                  alt={origem.nome}
+                  className="w-8 h-8 object-cover"
+                />
+              ) : (
+                <div
+                  className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs"
+                  style={{ backgroundColor: origem?.cor_principal || '#666' }}
+                >
+                  {origem?.nome.charAt(0)}
+                </div>
+              )}
               <ArrowLeftRight className="w-4 h-4 text-gray-500 my-1" />
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                style={{ backgroundColor: destino?.cor_principal || '#666' }}
-              >
-                {destino?.nome.charAt(0)}
-              </div>
+              {destino?.escudo_url ? (
+                <img
+                  src={destino.escudo_url}
+                  alt={destino.nome}
+                  className="w-8 h-8 object-cover"
+                />
+              ) : (
+                <div
+                  className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs"
+                  style={{ backgroundColor: destino?.cor_principal || '#666' }}
+                >
+                  {destino?.nome.charAt(0)}
+                </div>
+              )}
             </div>
 
             {/* Info */}
             <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">
+                {jogador?.foto_url ? (
+                  <img
+                    src={jogador.foto_url}
+                    alt={jogador.nome}
+                    className="w-8 h-8 object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs bg-gray-800">
+                    {jogador?.numero || '?'}
+                  </div>
+                )}
                 <p className="font-medium">{jogador?.nome}</p>
                 <span className="text-xs text-gray-500">{jogador?.posicao}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
@@ -101,6 +128,17 @@ export function Transferencias() {
                 {jogadorTroca && (
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400">Troca:</span>
+                    {jogadorTroca.foto_url ? (
+                      <img
+                        src={jogadorTroca.foto_url}
+                        alt={jogadorTroca.nome}
+                        className="w-6 h-6 object-cover"
+                      />
+                    ) : (
+                      <div className="w-6 h-6 flex items-center justify-center text-white font-bold text-xs bg-gray-800">
+                        {jogadorTroca.numero}
+                      </div>
+                    )}
                     <span className="text-gray-300">{jogadorTroca.nome} ({jogadorTroca.posicao})</span>
                   </div>
                 )}

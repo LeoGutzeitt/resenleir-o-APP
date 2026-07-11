@@ -6,6 +6,12 @@ export function Artilharia() {
   const [aba, setAba] = useState<'gols' | 'assistencias'>('gols');
   const artilharia = db.views.artilharia();
   const assistencias = db.views.assistencias();
+  const jogadores = db.jogadores.listar();
+
+  const getFotoJogador = (jogadorId: string) => {
+    const jogador = jogadores.find(j => j.id === jogadorId);
+    return jogador?.foto_url || null;
+  };
 
   const dados = aba === 'gols' ? artilharia : assistencias;
   const valorKey = aba === 'gols' ? 'gols' : 'assistencias';
@@ -62,7 +68,22 @@ export function Artilharia() {
                     <span className={`font-bold ${index < 3 ? 'text-yellow-500' : ''}`}>{index + 1}º</span>
                   </div>
                 </td>
-                <td className="py-4 px-4 font-medium">{item.jogador_nome}</td>
+                <td className="py-4 px-4">
+                  <div className="flex items-center gap-3">
+                    {getFotoJogador(item.jogador_id) ? (
+                      <img
+                        src={getFotoJogador(item.jogador_id)!}
+                        alt={item.jogador_nome}
+                        className="w-8 h-8 object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs bg-gray-800">
+                        {item.jogador_nome.charAt(0)}
+                      </div>
+                    )}
+                    <span className="font-medium">{item.jogador_nome}</span>
+                  </div>
+                </td>
                 <td className="py-4 px-4 text-gray-400">{item.clube_nome}</td>
                 <td className="text-center py-4 px-4">
                   <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${
@@ -81,17 +102,28 @@ export function Artilharia() {
       <div className="md:hidden space-y-2">
         {dados.map((item, index) => (
           <div key={item.jogador_id} className="bg-gray-900 rounded-xl p-4 border border-gray-800 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
-                index === 0 ? 'bg-yellow-500/20 text-yellow-500' : 'bg-gray-800 text-gray-400'
-              }`}>
-                {index + 1}
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                  index === 0 ? 'bg-yellow-500/20 text-yellow-500' : 'bg-gray-800 text-gray-400'
+                }`}>
+                  {index + 1}
+                </div>
+                {getFotoJogador(item.jogador_id) ? (
+                  <img
+                    src={getFotoJogador(item.jogador_id)!}
+                    alt={item.jogador_nome}
+                    className="w-8 h-8 object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs bg-gray-800">
+                    {item.jogador_nome.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <p className="font-medium">{item.jogador_nome}</p>
+                  <p className="text-sm text-gray-400">{item.clube_nome}</p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium">{item.jogador_nome}</p>
-                <p className="text-sm text-gray-400">{item.clube_nome}</p>
-              </div>
-            </div>
             <div className="text-right">
               <span className={`text-xl font-bold ${index === 0 ? 'text-yellow-500' : 'text-white'}`}>
                 {Number(item[valorKey as keyof typeof item])}

@@ -133,9 +133,17 @@ export function Mercado() {
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center font-bold text-sm">
-                    {jogador.numero}
-                  </div>
+                  {jogador.foto_url ? (
+                    <img
+                      src={jogador.foto_url}
+                      alt={jogador.nome}
+                      className="w-10 h-10 object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 flex items-center justify-center text-white font-bold text-sm bg-gray-800">
+                      {jogador.numero}
+                    </div>
+                  )}
                   <div>
                     <p className="font-medium">{jogador.nome}</p>
                     <p className="text-xs text-gray-400">{jogador.posicao}</p>
@@ -145,12 +153,20 @@ export function Mercado() {
               </div>
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <div className="flex items-center gap-1.5">
-                  <div
-                    className="w-4 h-4 rounded-full flex items-center justify-center text-white font-bold"
-                    style={{ backgroundColor: clube?.cor_principal || '#666' }}
-                  >
-                    {clube?.nome.charAt(0)}
-                  </div>
+                  {clube?.escudo_url ? (
+                    <img
+                      src={clube.escudo_url}
+                      alt={clube.nome}
+                      className="w-4 h-4 object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="w-4 h-4 flex items-center justify-center text-white font-bold"
+                      style={{ backgroundColor: clube?.cor_principal || '#666' }}
+                    >
+                      {clube?.nome.charAt(0)}
+                    </div>
+                  )}
                   {clube?.nome}
                 </div>
                 {isDono && meusClube && (
@@ -186,14 +202,22 @@ export function Mercado() {
             <h2 className="text-lg font-semibold mb-2">Nova Proposta</h2>
             
             {/* Jogador Alvo */}
-            <div className="bg-gray-800 rounded-lg p-3 mb-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center font-bold">
-                {jogadorSelecionado.numero}
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">{jogadorSelecionado.nome}</p>
-                <p className="text-sm text-gray-400">{jogadorSelecionado.posicao} - {clubeJogador?.nome}</p>
-              </div>
+              <div className="bg-gray-800 rounded-lg p-3 mb-4 flex items-center gap-3">
+                {jogadorSelecionado.foto_url ? (
+                  <img
+                    src={jogadorSelecionado.foto_url}
+                    alt={jogadorSelecionado.nome}
+                    className="w-10 h-10 object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 flex items-center justify-center text-white font-bold bg-gray-700">
+                    {jogadorSelecionado.numero}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <p className="font-medium">{jogadorSelecionado.nome}</p>
+                  <p className="text-sm text-gray-400">{jogadorSelecionado.posicao} - {clubeJogador?.nome}</p>
+                </div>
               <div className="text-right">
                 <p className="text-sm text-gray-400">Valor de mercado</p>
                 <p className="font-bold text-yellow-500">{formatValor(jogadorSelecionado.valor_mercado)}</p>
