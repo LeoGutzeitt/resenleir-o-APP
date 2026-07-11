@@ -354,7 +354,7 @@ export const db = {
           gols_pro: golsPro,
           gols_contra: golsContra,
           saldo_gols: golsPro - golsContra,
-          aproveitamento: jogosDoClube && jogosDoClube.length > 0 
+          aproveitamento: jogosDoClube && jogosDoClube.length > 0
             ? Number(((pontos / (jogosDoClube.length * 3)) * 100).toFixed(1)
             : 0,
         });
