@@ -19,6 +19,26 @@ alter table public.estatisticas enable row level security;
 alter table public.transferencias enable row level security;
 alter table public.noticias enable row level security;
 
+-- Garante que os dez clubes iniciais existam antes de associar os perfis.
+-- OVERRIDING SYSTEM VALUE também funciona quando id é uma identity column.
+insert into public.clubes (id, nome, cor_principal, orcamento)
+overriding system value
+values
+  (1, 'Fênix FC', '#FF4500', 100000000),
+  (2, 'Trovão Azul', '#1E90FF', 100000000),
+  (3, 'Leões da Vila', '#FFD700', 100000000),
+  (4, 'Águias Negras', '#2F2F2F', 100000000),
+  (5, 'Dragões Vermelhos', '#DC143C', 100000000),
+  (6, 'Tubarões FC', '#00CED1', 100000000),
+  (7, 'Guerreiros FC', '#228B22', 100000000),
+  (8, 'Corsários', '#8B0000', 100000000),
+  (9, 'Tornado FC', '#9400D3', 100000000),
+  (10, 'Panteras FC', '#FF69B4', 100000000)
+on conflict (id) do update set
+  nome = excluded.nome,
+  cor_principal = excluded.cor_principal,
+  orcamento = coalesce(public.clubes.orcamento, excluded.orcamento);
+
 -- Cria/atualiza perfis para os usuários que já existem no Supabase Auth.
 -- Para as contas conhecidas, o clube é derivado do e-mail; vínculos manuais
 -- existentes são preservados quando não há um clube conhecido no mapeamento.
@@ -79,6 +99,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
+set row_security = off
 as $$
 declare
   novo_role text;
@@ -135,6 +156,7 @@ language sql
 stable
 security definer
 set search_path = public
+set row_security = off
 as $$
   select exists (
     select 1 from public.usuarios
@@ -152,7 +174,7 @@ drop policy if exists "Usuarios podem ler o proprio perfil" on public.usuarios;
 drop policy if exists "Usuarios podem atualizar o proprio nome" on public.usuarios;
 create policy "Usuarios podem ler o proprio perfil"
   on public.usuarios for select
-  using (auth.uid() = id or public.usuario_eh_admin());
+  using (auth.uid() = id);
 create policy "Usuarios podem atualizar o proprio nome"
   on public.usuarios for update
   using (auth.uid() = id)

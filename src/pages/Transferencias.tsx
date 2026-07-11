@@ -17,32 +17,41 @@ export function Transferencias() {
   const [meusClube, setMeusClube] = useState<Clube | null>(null);
   const [transferenciasComDados, setTransferenciasComDados] = useState<TransferenciaComDados[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const fetchData = async () => {
-      const [meuClubeData, transferenciasData] = await Promise.all([
-        user && isDono ? db.clubes.buscarPorDono(user.id) : Promise.resolve(null),
-        db.transferencias.listar()
-      ]);
-      
-      // Carregar dados das transferências
-      const transferenciasComDados = await Promise.all(
-        transferenciasData.map(async (t) => {
-          const [jogador, origem, destino, jogadorTroca] = await Promise.all([
-            db.jogadores.buscarPorId(t.jogador_id),
-            db.clubes.buscarPorId(t.clube_origem_id),
-            db.clubes.buscarPorId(t.clube_destino_id),
-            t.jogador_troca_id ? db.jogadores.buscarPorId(t.jogador_troca_id) : Promise.resolve(null)
-          ]);
-          return { ...t, jogador, origem, destino, jogadorTroca };
-        })
-      );
-      
-      setMeusClube(meuClubeData || null);
-      setTransferenciasComDados(transferenciasComDados);
-      setLoading(false);
+      setLoading(true);
+      setErro('');
+      try {
+        const [meuClubeData, transferenciasData] = await Promise.all([
+          user && isDono ? db.clubes.buscarPorDono(user.id, user.clube_id) : Promise.resolve(null),
+          db.transferencias.listar()
+        ]);
+        const dados = await Promise.all(
+          transferenciasData.map(async (t) => {
+            const [jogador, origem, destino, jogadorTroca] = await Promise.all([
+              db.jogadores.buscarPorId(t.jogador_id),
+              db.clubes.buscarPorId(t.clube_origem_id),
+              db.clubes.buscarPorId(t.clube_destino_id),
+              t.jogador_troca_id ? db.jogadores.buscarPorId(t.jogador_troca_id) : Promise.resolve(null)
+            ]);
+            return { ...t, jogador, origem, destino, jogadorTroca };
+          })
+        );
+        if (!ativo) return;
+        setMeusClube(meuClubeData || null);
+        setTransferenciasComDados(dados);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar as transferências.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
     };
-    fetchData();
+    void fetchData();
+    return () => { ativo = false; };
   }, [user, isDono]);
 
   // Propostas de COMPRA recebidas (outros clubes querem comprar MEUS jogadores)
@@ -239,6 +248,10 @@ export function Transferencias() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   if (!isDono) {

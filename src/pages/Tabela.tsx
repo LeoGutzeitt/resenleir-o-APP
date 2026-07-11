@@ -9,18 +9,28 @@ export function Tabela() {
   const [tabela, setTabela] = useState<TabelaLinha[]>([]);
   const [clubes, setClubes] = useState<Clube[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const fetchData = async () => {
-      const [tabelaData, clubesData] = await Promise.all([
-        db.views.tabela(),
-        db.clubes.listar()
-      ]);
-      setTabela(tabelaData);
-      setClubes(clubesData);
-      setLoading(false);
+      try {
+        const [tabelaData, clubesData] = await Promise.all([
+          db.views.tabela(),
+          db.clubes.listar()
+        ]);
+        if (!ativo) return;
+        setTabela(tabelaData);
+        setClubes(clubesData);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar a tabela.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
     };
-    fetchData();
+    void fetchData();
+    return () => { ativo = false; };
   }, []);
 
   const getEscudo = (clubeId: string) => {
@@ -43,6 +53,10 @@ export function Tabela() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   return (

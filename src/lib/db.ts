@@ -93,7 +93,12 @@ export const db = {
       verificarErro(error, 'Erro ao buscar clube');
       return data || undefined;
     },
-    buscarPorDono: async (usuarioId: string): Promise<Clube | undefined> => {
+    buscarPorDono: async (usuarioId: string, clubeId?: string | null): Promise<Clube | undefined> => {
+      if (clubeId) {
+        const clubeVinculado = await db.clubes.buscarPorId(clubeId);
+        if (clubeVinculado) return clubeVinculado;
+      }
+
       const { data: clubeDoDono, error: erroClubeDoDono } = await supabase
         .from('clubes')
         .select('*')

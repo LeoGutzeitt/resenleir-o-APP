@@ -23,9 +23,14 @@ export function Layout() {
       return;
     }
 
-    db.clubes.buscarPorDono(user.id).then((clube) => {
-      if (ativo) setMeusClube(clube || null);
-    });
+    db.clubes.buscarPorDono(user.id, user.clube_id)
+      .then((clube) => {
+        if (ativo) setMeusClube(clube || null);
+      })
+      .catch((error) => {
+        console.error('Não foi possível carregar o clube do usuário:', error);
+        if (ativo) setMeusClube(null);
+      });
 
     return () => {
       ativo = false;
@@ -84,7 +89,7 @@ export function Layout() {
             <div className="flex items-center gap-3">
               {user ? (
                 <>
-                  {isDono && meusClube && (
+                  {isDono && (
                     <Link
                       to="/meu-clube"
                       className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -94,7 +99,7 @@ export function Layout() {
                       }`}
                     >
                       <Shield className="w-4 h-4" />
-                      {meusClube.nome}
+                      {meusClube?.nome || 'Meu Clube'}
                     </Link>
                   )}
                   {isAdmin && (
@@ -158,7 +163,7 @@ export function Layout() {
                   {item.label}
                 </Link>
               ))}
-              {isDono && meusClube && (
+              {isDono && (
                 <Link
                   to="/meu-clube"
                   onClick={() => setMobileMenuOpen(false)}
@@ -169,7 +174,7 @@ export function Layout() {
                   }`}
                 >
                   <Shield className="w-5 h-5" />
-                  {meusClube.nome}
+                  {meusClube?.nome || 'Meu Clube'}
                 </Link>
               )}
               {isAdmin && (

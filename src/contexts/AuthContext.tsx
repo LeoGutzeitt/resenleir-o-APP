@@ -13,22 +13,40 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const PERFIS_PADRAO: Record<string, Pick<Usuario, 'nome' | 'role' | 'clube_id'>> = {
+  'admin@resenleirao.com': { nome: 'Admin', role: 'admin', clube_id: null },
+  'leo@resenleirao.com': { nome: 'Leo', role: 'dono', clube_id: '1' },
+  'felipe@resenleirao.com': { nome: 'Felipe', role: 'dono', clube_id: '2' },
+  'diego@resenleirao.com': { nome: 'Diego', role: 'dono', clube_id: '3' },
+  'pedro@resenleirao.com': { nome: 'Pedro', role: 'dono', clube_id: '4' },
+  'berenguer@resenleirao.com': { nome: 'Berenguer', role: 'dono', clube_id: '5' },
+  'bruno@resenleirao.com': { nome: 'Bruno', role: 'dono', clube_id: '6' },
+  'yves@resenleirao.com': { nome: 'Yves', role: 'dono', clube_id: '7' },
+  'adriano@resenleirao.com': { nome: 'Adriano', role: 'dono', clube_id: '8' },
+  'jhonny@resenleirao.com': { nome: 'Jhonny', role: 'dono', clube_id: '9' },
+  'piscina@resenleirao.com': { nome: 'Piscina', role: 'dono', clube_id: '10' },
+};
+
 const montarUsuario = (authUser: {
   id: string;
   email?: string;
   app_metadata?: Record<string, unknown>;
   user_metadata?: Record<string, unknown>;
 }, perfil?: Partial<Usuario> | null): Usuario => {
+  const email = (perfil?.email || authUser.email || '').toLowerCase();
+  const perfilPadrao = PERFIS_PADRAO[email];
   const roleMetadata = authUser.app_metadata?.role;
   const role = perfil?.role
-    || (roleMetadata === 'admin' || roleMetadata === 'dono' ? roleMetadata : 'visitante');
+    || (roleMetadata === 'admin' || roleMetadata === 'dono' ? roleMetadata : undefined)
+    || perfilPadrao?.role
+    || 'visitante';
 
   return {
     id: authUser.id,
-    email: perfil?.email || authUser.email || '',
-    nome: perfil?.nome || String(authUser.user_metadata?.nome || authUser.email || 'Usuário'),
+    email,
+    nome: perfil?.nome || String(authUser.user_metadata?.nome || perfilPadrao?.nome || authUser.email || 'Usuário'),
     role,
-    clube_id: perfil?.clube_id ?? null,
+    clube_id: perfil?.clube_id ?? perfilPadrao?.clube_id ?? null,
   };
 };
 
@@ -51,19 +69,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar sessão atual
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) setUser(await buscarUsuario(session.user));
-      setLoading(false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(montarUsuario(session.user));
+          void buscarUsuario(session.user).then(setUser);
+        }
+      } catch (error) {
+        console.error('Não foi possível restaurar a sessão:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    getSession();
+    void getSession();
 
-    // Escutar mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        void buscarUsuario(session.user).then(setUser);
+        setUser(montarUsuario(session.user));
+        // O callback do Auth precisa retornar antes de iniciar outra consulta
+        // ao Supabase; caso contrário signInWithPassword pode ficar bloqueado.
+        window.setTimeout(() => {
+          void buscarUsuario(session.user).then(setUser);
+        }, 0);
       } else {
         setUser(null);
       }
@@ -82,7 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    setUser(await buscarUsuario(data.user));
+    setUser(montarUsuario(data.user));
+    void buscarUsuario(data.user).then(setUser);
     return true;
   };
 

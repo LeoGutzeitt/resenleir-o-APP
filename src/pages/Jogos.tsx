@@ -8,18 +8,28 @@ export function Jogos() {
   const [todosJogos, setTodosJogos] = useState<Jogo[]>([]);
   const [clubes, setClubes] = useState<Clube[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const fetchData = async () => {
-      const [jogosData, clubesData] = await Promise.all([
-        db.jogos.listar(),
-        db.clubes.listar()
-      ]);
-      setTodosJogos(jogosData);
-      setClubes(clubesData);
-      setLoading(false);
+      try {
+        const [jogosData, clubesData] = await Promise.all([
+          db.jogos.listar(),
+          db.clubes.listar()
+        ]);
+        if (!ativo) return;
+        setTodosJogos(jogosData);
+        setClubes(clubesData);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar os jogos.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
     };
-    fetchData();
+    void fetchData();
+    return () => { ativo = false; };
   }, []);
 
   const rodadas = [...new Set(todosJogos.map(j => j.rodada))].sort((a, b) => a - b);
@@ -60,6 +70,10 @@ export function Jogos() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   return (
