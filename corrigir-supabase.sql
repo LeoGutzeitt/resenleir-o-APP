@@ -1,5 +1,5 @@
 -- Correção idempotente de perfis, vínculos de clubes e permissões.
--- Execute este arquivo uma vez no SQL Editor do Supabase (como proprietário do projeto).
+-- Pode ser executado novamente no SQL Editor do Supabase (como proprietário do projeto).
 
 begin;
 
@@ -38,6 +38,23 @@ on conflict (id) do update set
   nome = excluded.nome,
   cor_principal = excluded.cor_principal,
   orcamento = coalesce(public.clubes.orcamento, excluded.orcamento);
+
+-- Inserções com IDs explícitos não avançam a sequence automaticamente. Sem
+-- esta sincronização, o próximo clube criado pelo painel pode tentar usar ID 1.
+do $$
+declare
+  clubes_sequence text;
+begin
+  clubes_sequence := pg_get_serial_sequence('public.clubes', 'id');
+  if clubes_sequence is not null then
+    perform setval(
+      clubes_sequence::regclass,
+      greatest(coalesce((select max(id) from public.clubes), 1), 1),
+      true
+    );
+  end if;
+end;
+$$;
 
 -- Cria/atualiza perfis para os usuários que já existem no Supabase Auth.
 -- Para as contas conhecidas, o clube é derivado do e-mail; vínculos manuais
@@ -164,9 +181,120 @@ as $$
   );
 $$;
 
+-- O painel usa RPCs security definer para listar donos e alterar os dois lados
+-- do vínculo em uma única transação, sem liberar clube_id para updates comuns.
+create or replace function public.admin_listar_donos()
+returns table (
+  id uuid,
+  email text,
+  nome text,
+  role text,
+  clube_id bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+set row_security = off
+as $$
+  select u.id, u.email, u.nome, u.role, u.clube_id
+  from public.usuarios u
+  where public.usuario_eh_admin()
+    and u.role = 'dono'
+  order by u.nome, u.email;
+$$;
+
+create or replace function public.admin_associar_clube_dono(
+  p_clube_id bigint,
+  p_usuario_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+set row_security = off
+as $$
+begin
+  if not public.usuario_eh_admin() then
+    raise exception 'Acesso restrito ao administrador'
+      using errcode = '42501';
+  end if;
+
+  if not exists (select 1 from public.clubes where id = p_clube_id) then
+    raise exception 'Clube não encontrado';
+  end if;
+
+  if p_usuario_id is not null and not exists (
+    select 1 from public.usuarios
+    where id = p_usuario_id and role = 'dono'
+  ) then
+    raise exception 'Perfil de dono não encontrado';
+  end if;
+
+  -- Libera o dono anterior deste clube e o clube anterior do novo dono.
+  update public.usuarios
+  set clube_id = null
+  where clube_id = p_clube_id;
+
+  if p_usuario_id is not null then
+    update public.clubes
+    set usuario_dono_id = null
+    where usuario_dono_id = p_usuario_id;
+  end if;
+
+  update public.clubes
+  set usuario_dono_id = p_usuario_id
+  where id = p_clube_id;
+
+  if p_usuario_id is not null then
+    update public.usuarios
+    set clube_id = p_clube_id
+    where id = p_usuario_id;
+  end if;
+end;
+$$;
+
+revoke all on function public.admin_listar_donos() from public;
+revoke all on function public.admin_associar_clube_dono(bigint, uuid) from public;
+grant execute on function public.admin_listar_donos() to authenticated;
+grant execute on function public.admin_associar_clube_dono(bigint, uuid) to authenticated;
+
+-- Remove também políticas antigas com nomes não previstos. Uma política
+-- residual em usuarios era suficiente para reintroduzir recursão em todo app.
+do $$
+declare
+  politica record;
+begin
+  for politica in
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = any (array[
+        'usuarios', 'clubes', 'jogadores', 'jogos', 'estatisticas',
+        'transferencias', 'noticias'
+      ])
+  loop
+    execute format(
+      'drop policy %I on %I.%I',
+      politica.policyname,
+      politica.schemaname,
+      politica.tablename
+    );
+  end loop;
+end;
+$$;
+
 -- Impede que um usuário comum se promova para admin ou troque o próprio clube.
 revoke update on public.usuarios from authenticated;
 grant update (nome) on public.usuarios to authenticated;
+
+-- As permissões de tabela são filtradas pelas políticas RLS abaixo.
+grant select on public.usuarios to authenticated;
+grant select on public.clubes, public.jogadores, public.jogos,
+  public.estatisticas, public.transferencias, public.noticias to anon, authenticated;
+grant insert, update, delete on public.clubes, public.jogadores, public.jogos,
+  public.estatisticas, public.transferencias, public.noticias to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
 
 drop policy if exists "Usuários podem ver seus próprios dados" on public.usuarios;
 drop policy if exists "Usuários podem atualizar seus próprios dados" on public.usuarios;
