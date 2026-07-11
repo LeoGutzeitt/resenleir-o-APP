@@ -309,7 +309,7 @@ export const db = {
       if (!clubes) return [];
 
       const tabela: TabelaLinha[] = [];
-      
+
       for (const clube of clubes) {
         const { data: jogosDoClube } = await supabase
           .from('jogos')
@@ -338,8 +338,15 @@ export const db = {
           } else if (golsFavor === golsSofridos) {
             pontos += 1;
             empates++;
-          } else derrotas++;
+          } else {
+            derrotas++;
+          }
         });
+
+        const totalJogos = jogosDoClube?.length || 0;
+        const aproveitamento = totalJogos > 0
+          ? Math.round((pontos / (totalJogos * 3)) * 1000) / 10
+          : 0;
 
         tabela.push({
           clube_id: clube.id,
@@ -347,16 +354,14 @@ export const db = {
           escudo_url: clube.escudo_url,
           cor_principal: clube.cor_principal,
           pontos,
-          jogos: jogosDoClube?.length || 0,
+          jogos: totalJogos,
           vitorias,
           empates,
           derrotas,
           gols_pro: golsPro,
           gols_contra: golsContra,
           saldo_gols: golsPro - golsContra,
-          aproveitamento: jogosDoClube && jogosDoClube.length > 0
-            ? Number(((pontos / (jogosDoClube.length * 3)) * 100).toFixed(1)
-            : 0,
+          aproveitamento,
         });
       }
 
@@ -377,7 +382,7 @@ export const db = {
         golMap.set(e.jogador_id, (golMap.get(e.jogador_id) || 0) + e.gols);
       });
 
-       return Array.from(golMap.entries())
+      return Array.from(golMap.entries())
         .map(([jogadorId, gols]) => {
           const jogador = jogadores?.find((j) => j.id === jogadorId);
           const clube = clubes?.find((c) => c.id === jogador?.clube_id);
