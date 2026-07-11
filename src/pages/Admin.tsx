@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, Plus, Trash2, Edit3, Save, X, DollarSign, Users, CheckCircle } from 'lucide-react';
-import type { Clube, Jogador, Jogo } from '../types';
+import type { Clube, Jogador, Jogo, Usuario } from '../types';
 
 type ValoresEstatistica = {
   gols: number;
@@ -27,8 +27,11 @@ export function Admin() {
   const [jogoSelecionado, setJogoSelecionado] = useState<string | null>(null);
   const [estatisticasJogo, setEstatisticasJogo] = useState<Map<string, ValoresEstatistica>>(new Map());
   const [clubes, setClubes] = useState<Clube[]>([]);
+  const [donos, setDonos] = useState<Usuario[]>([]);
   const [jogos, setJogos] = useState<Jogo[]>([]);
   const [todosJogadores, setTodosJogadores] = useState<Jogador[]>([]);
+  const [salvandoClube, setSalvandoClube] = useState(false);
+  const [associandoClubeId, setAssociandoClubeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
@@ -44,15 +47,26 @@ export function Admin() {
       setLoading(true);
       setErro('');
       try {
-        const [clubesData, jogosData, jogadoresData] = await Promise.all([
+        const [clubesResult, donosResult, jogosResult, jogadoresResult] = await Promise.allSettled([
           db.clubes.listar(),
+          db.usuarios.listarDonos(),
           db.jogos.listar(),
           db.jogadores.listar(),
         ]);
         if (!ativo) return;
-        setClubes(clubesData);
-        setJogos(jogosData);
-        setTodosJogadores(jogadoresData);
+
+        if (clubesResult.status === 'fulfilled') setClubes(clubesResult.value);
+        if (donosResult.status === 'fulfilled') setDonos(donosResult.value);
+        if (jogosResult.status === 'fulfilled') setJogos(jogosResult.value);
+        if (jogadoresResult.status === 'fulfilled') setTodosJogadores(jogadoresResult.value);
+
+        const falhaClubes = clubesResult.status === 'rejected' || donosResult.status === 'rejected';
+        const falhaCompeticao = jogosResult.status === 'rejected' || jogadoresResult.status === 'rejected';
+        if (falhaClubes) {
+          setErro('Não foi possível carregar clubes e perfis de donos. Execute a migração mais recente do Supabase.');
+        } else if (falhaCompeticao) {
+          setErro('Clubes carregados, mas alguns dados de jogos ou jogadores estão indisponíveis.');
+        }
       } catch (error) {
         console.error(error);
         if (ativo) setErro('Não foi possível carregar os dados administrativos.');
@@ -90,30 +104,56 @@ export function Admin() {
   const handleAddClube = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!novoClubeNome) return;
+    setSalvandoClube(true);
+    setErro('');
+    try {
+      let escudo_url: string | null = null;
 
-    let escudo_url: string | null = null;
+      if (novoClubeEscudo) {
+        const reader = new FileReader();
+        escudo_url = await new Promise((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(novoClubeEscudo);
+        });
+      }
 
-    // Upload do escudo se houver
-    if (novoClubeEscudo) {
-      const reader = new FileReader();
-      escudo_url = await new Promise((resolve) => {
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(novoClubeEscudo);
+      const clube = await db.clubes.criar({
+        nome: novoClubeNome,
+        escudo_url,
+        cor_principal: novoClubeCor,
+        usuario_dono_id: null,
+        orcamento: 100000000,
       });
+      setClubes((atuais) => [...atuais, clube]);
+      setShowAddClube(false);
+      setNovoClubeNome('');
+      setNovoClubeCor('#FF4500');
+      setNovoClubeEscudo(null);
+    } catch (error) {
+      console.error(error);
+      setErro('Não foi possível criar o clube. Verifique se a migração mais recente foi executada.');
+    } finally {
+      setSalvandoClube(false);
     }
+  };
 
-    const clube = await db.clubes.criar({
-      nome: novoClubeNome,
-      escudo_url,
-      cor_principal: novoClubeCor,
-      usuario_dono_id: null,
-      orcamento: 100000000,
-    });
-    if (clube) setClubes((atuais) => [...atuais, clube]);
-    setShowAddClube(false);
-    setNovoClubeNome('');
-    setNovoClubeCor('#FF4500');
-    setNovoClubeEscudo(null);
+  const handleAssociarDono = async (clubeId: string, usuarioId: string | null) => {
+    setAssociandoClubeId(clubeId);
+    setErro('');
+    try {
+      await db.usuarios.associarClube(clubeId, usuarioId);
+      const [clubesAtualizados, donosAtualizados] = await Promise.all([
+        db.clubes.listar(),
+        db.usuarios.listarDonos(),
+      ]);
+      setClubes(clubesAtualizados);
+      setDonos(donosAtualizados);
+    } catch (error) {
+      console.error(error);
+      setErro('Não foi possível associar o dono ao clube. Verifique as permissões do Supabase.');
+    } finally {
+      setAssociandoClubeId(null);
+    }
   };
 
   const handleRemoveClube = async (id: string) => {
@@ -331,9 +371,10 @@ export function Admin() {
                   <div className="flex gap-3 pt-2">
                     <button
                       type="submit"
-                      className="flex-1 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors"
+                      disabled={salvandoClube}
+                      className="flex-1 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-60"
                     >
-                      Adicionar
+                      {salvandoClube ? 'Adicionando...' : 'Adicionar'}
                     </button>
                     <button
                       type="button"
@@ -413,7 +454,22 @@ export function Admin() {
                         <span className="text-sm text-gray-400">{clube.cor_principal}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-gray-400 text-sm">{clube.usuario_dono_id ? 'Sim' : 'Não'}</td>
+                    <td className="py-4 px-4">
+                      <select
+                        value={clube.usuario_dono_id || ''}
+                        disabled={associandoClubeId === clube.id}
+                        onChange={(e) => void handleAssociarDono(clube.id, e.target.value || null)}
+                        aria-label={`Dono do clube ${clube.nome}`}
+                        className="w-full min-w-48 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm text-gray-200 disabled:opacity-60"
+                      >
+                        <option value="">Sem dono</option>
+                        {donos.map((dono) => (
+                          <option key={dono.id} value={dono.id}>
+                            {dono.nome} ({dono.email})
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="py-4 px-4">
                       {editingClubeId === clube.id ? (
                         <input

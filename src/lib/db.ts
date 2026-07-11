@@ -81,6 +81,22 @@ export const db = {
     },
   },
 
+  // Perfis de usuários (operações administrativas protegidas por RPC)
+  usuarios: {
+    listarDonos: async (): Promise<Usuario[]> => {
+      const { data, error } = await supabase.rpc('admin_listar_donos');
+      verificarErro(error, 'Erro ao listar donos');
+      return (data || []) as Usuario[];
+    },
+    associarClube: async (clubeId: string, usuarioId: string | null): Promise<void> => {
+      const { error } = await supabase.rpc('admin_associar_clube_dono', {
+        p_clube_id: clubeId,
+        p_usuario_id: usuarioId,
+      });
+      verificarErro(error, 'Erro ao associar dono ao clube');
+    },
+  },
+
   // Clubes
   clubes: {
     listar: async (): Promise<Clube[]> => {
