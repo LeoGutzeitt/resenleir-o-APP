@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Swords, Goal, ArrowLeftRight, Camera, Save, X } from 'lucide-react';
+import { Users, Swords, Goal, ArrowLeftRight, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { Clube, Jogador, Jogo, ArtilheiroRanking } from '../types';
+import type { Clube, Jogador, Jogo, ArtilheiroRanking, TabelaLinha } from '../types';
 
 export function MeuClube() {
   const { user } = useAuth();
@@ -11,8 +11,9 @@ export function MeuClube() {
   const [novoEscudo, setNovoEscudo] = useState<File | null>(null);
   const [meusClube, setMeusClube] = useState<Clube | null>(null);
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
+  const [clubes, setClubes] = useState<Clube[]>([]);
   const [jogos, setJogos] = useState<Jogo[]>([]);
-  const [tabela, setTabela] = useState<any[]>([]);
+  const [tabela, setTabela] = useState<TabelaLinha[]>([]);
   const [artilharia, setArtilharia] = useState<ArtilheiroRanking[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,8 +28,9 @@ export function MeuClube() {
         return;
       }
       
-      const [jogadoresData, jogosData, tabelaData, artilhariaData] = await Promise.all([
+      const [jogadoresData, clubesData, jogosData, tabelaData, artilhariaData] = await Promise.all([
         db.jogadores.listar(clube.id),
+        db.clubes.listar(),
         db.jogos.buscarPorClube(clube.id),
         db.views.tabela(),
         db.views.artilharia()
@@ -36,15 +38,16 @@ export function MeuClube() {
       
       setMeusClube(clube);
       setJogadores(jogadoresData);
+      setClubes(clubesData);
       setJogos(jogosData);
       setTabela(tabelaData);
-      setArtilharia(artilhariaData.filter((a: any) => a.clube_id === clube.id));
+      setArtilharia(artilhariaData.filter((a) => a.clube_id === clube.id));
       setLoading(false);
     };
     fetchData();
   }, [user]);
 
-  const minhaPosicao = tabela.find((t: any) => t.clube_id === meusClube?.id);
+  const minhaPosicao = tabela.find((t) => t.clube_id === meusClube?.id);
 
   const handleSalvarEscudo = async () => {
     if (!novoEscudo || !meusClube) return;
@@ -55,7 +58,8 @@ export function MeuClube() {
       reader.readAsDataURL(novoEscudo);
     });
 
-    await db.clubes.atualizar(meusClube.id, { escudo_url: escudo_url as string });
+    const clubeAtualizado = await db.clubes.atualizar(meusClube.id, { escudo_url: escudo_url as string });
+    if (clubeAtualizado) setMeusClube(clubeAtualizado);
     setShowEditEscudo(false);
     setNovoEscudo(null);
   };
@@ -208,9 +212,8 @@ export function MeuClube() {
         </div>
         <div className="divide-y divide-gray-800">
           {jogos.filter(j => j.status === 'agendado').slice(0, 3).map(jogo => {
-            const adversario = db.clubes.buscarPorId(
-              jogo.clube_casa_id === meusClube.id ? jogo.clube_fora_id : jogo.clube_casa_id
-            );
+            const adversarioId = jogo.clube_casa_id === meusClube.id ? jogo.clube_fora_id : jogo.clube_casa_id;
+            const adversario = clubes.find((clube) => clube.id === adversarioId);
             const isCasa = jogo.clube_casa_id === meusClube.id;
             return (
               <div key={jogo.id} className="p-4 flex items-center justify-between">
@@ -249,7 +252,7 @@ export function MeuClube() {
           </div>
           <div className="divide-y divide-gray-800">
             {artilharia.slice(0, 5).map((j, idx) => {
-              const jogador = db.jogadores.buscarPorId(j.jogador_id);
+              const jogador = jogadores.find((item) => item.id === j.jogador_id);
               return (
                 <div key={j.jogador_id} className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">

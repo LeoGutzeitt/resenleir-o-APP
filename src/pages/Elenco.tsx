@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Plus, Trash2, Camera } from 'lucide-react';
+import { Users, Plus, Trash2 } from 'lucide-react';
 import type { Clube, Jogador } from '../types';
 
 export function Elenco() {

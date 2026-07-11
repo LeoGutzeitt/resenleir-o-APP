@@ -13,6 +13,39 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const montarUsuario = (authUser: {
+  id: string;
+  email?: string;
+  app_metadata?: Record<string, unknown>;
+  user_metadata?: Record<string, unknown>;
+}, perfil?: Partial<Usuario> | null): Usuario => {
+  const roleMetadata = authUser.app_metadata?.role;
+  const role = perfil?.role
+    || (roleMetadata === 'admin' || roleMetadata === 'dono' ? roleMetadata : 'visitante');
+
+  return {
+    id: authUser.id,
+    email: perfil?.email || authUser.email || '',
+    nome: perfil?.nome || String(authUser.user_metadata?.nome || authUser.email || 'Usuário'),
+    role,
+    clube_id: perfil?.clube_id ?? null,
+  };
+};
+
+const buscarUsuario = async (authUser: Parameters<typeof montarUsuario>[0]): Promise<Usuario> => {
+  const { data: perfil, error } = await supabase
+    .from('usuarios')
+    .select('id, email, nome, role, clube_id')
+    .eq('id', authUser.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Não foi possível carregar o perfil do usuário:', error.message);
+  }
+
+  return montarUsuario(authUser, perfil);
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,47 +54,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Verificar sessão atual
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Buscar dados do usuário da tabela usuarios
-        const { data: userData } = await supabase
-          .from('usuarios')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (userData) {
-          setUser({
-            id: userData.id,
-            email: userData.email,
-            nome: userData.nome,
-            role: userData.role,
-            clube_id: userData.clube_id
-          });
-        }
-      }
+      if (session?.user) setUser(await buscarUsuario(session.user));
       setLoading(false);
     };
 
     getSession();
 
     // Escutar mudanças de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        const { data: userData } = await supabase
-          .from('usuarios')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (userData) {
-          setUser({
-            id: userData.id,
-            email: userData.email,
-            nome: userData.nome,
-            role: userData.role,
-            clube_id: userData.clube_id
-          });
-        }
+        void buscarUsuario(session.user).then(setUser);
       } else {
         setUser(null);
       }
@@ -80,24 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    // Buscar dados do usuário
-    const { data: userData } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
-
-    if (userData) {
-      setUser({
-        id: userData.id,
-        email: userData.email,
-        nome: userData.nome,
-        role: userData.role,
-        clube_id: userData.clube_id
-      });
-      return true;
-    }
-    return false;
+    setUser(await buscarUsuario(data.user));
+    return true;
   };
 
   const logout = async () => {
@@ -121,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// oxlint-disable-next-line react/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within AuthProvider');

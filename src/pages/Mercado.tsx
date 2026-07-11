@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { Store, Send, Search, DollarSign } from 'lucide-react';
-import type { Clube, Jogador, Transferencia } from '../types';
+import type { Clube, Jogador } from '../types';
 
 export function Mercado() {
   const { user, isDono } = useAuth();
@@ -66,7 +66,7 @@ export function Mercado() {
     });
 
     if (!result.ok) {
-      alert(result.erro);
+      alert('erro' in result ? result.erro : 'Não foi possível criar a proposta.');
       return;
     }
 
