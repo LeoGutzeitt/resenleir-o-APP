@@ -1,24 +1,58 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import type { Transferencia } from '../types';
+import type { Transferencia, Clube, Jogador } from '../types';
 import { ArrowLeftRight, Check, X, ShoppingCart, Send } from 'lucide-react';
+
+interface TransferenciaComDados extends Transferencia {
+  jogador?: Jogador;
+  origem?: Clube;
+  destino?: Clube;
+  jogadorTroca?: Jogador | null;
+}
 
 export function Transferencias() {
   const { user, isDono } = useAuth();
   const [aba, setAba] = useState<'recebidas' | 'enviadas'>('recebidas');
+  const [meusClube, setMeusClube] = useState<Clube | null>(null);
+  const [transferenciasComDados, setTransferenciasComDados] = useState<TransferenciaComDados[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const meusClube = user && isDono ? db.clubes.buscarPorDono(user.id) : null;
-  const todasTransferencias = db.transferencias.listar();
-  
+  useEffect(() => {
+    const fetchData = async () => {
+      const [meuClubeData, transferenciasData] = await Promise.all([
+        user && isDono ? db.clubes.buscarPorDono(user.id) : Promise.resolve(null),
+        db.transferencias.listar()
+      ]);
+      
+      // Carregar dados das transferências
+      const transferenciasComDados = await Promise.all(
+        transferenciasData.map(async (t) => {
+          const [jogador, origem, destino, jogadorTroca] = await Promise.all([
+            db.jogadores.buscarPorId(t.jogador_id),
+            db.clubes.buscarPorId(t.clube_origem_id),
+            db.clubes.buscarPorId(t.clube_destino_id),
+            t.jogador_troca_id ? db.jogadores.buscarPorId(t.jogador_troca_id) : Promise.resolve(null)
+          ]);
+          return { ...t, jogador, origem, destino, jogadorTroca };
+        })
+      );
+      
+      setMeusClube(meuClubeData || null);
+      setTransferenciasComDados(transferenciasComDados);
+      setLoading(false);
+    };
+    fetchData();
+  }, [user, isDono]);
+
   // Propostas de COMPRA recebidas (outros clubes querem comprar MEUS jogadores)
   const recebidas = meusClube
-    ? todasTransferencias.filter(t => t.clube_origem_id === meusClube.id && t.status === 'pendente')
+    ? transferenciasComDados.filter(t => t.clube_origem_id === meusClube.id && t.status === 'pendente')
     : [];
   
   // Propostas de COMPRA enviadas (EU quero comprar jogadores de outros clubes)
   const enviadas = meusClube
-    ? todasTransferencias.filter(t => t.clube_destino_id === meusClube.id && t.status === 'pendente')
+    ? transferenciasComDados.filter(t => t.clube_destino_id === meusClube.id && t.status === 'pendente')
     : [];
 
   const formatValor = (v: number) => {
@@ -27,56 +61,79 @@ export function Transferencias() {
     return `R$ ${v}`;
   };
 
-  const handleAceitar = (id: string) => {
-    const result = db.transferencias.aceitar(id);
+  const handleAceitar = async (id: string) => {
+    const result = await db.transferencias.aceitar(id);
     if (!result) {
       alert('Não foi possível aceitar a proposta. Verifique o orçamento.');
     }
+    // Recarregar transferências
+    const transferenciasData = await db.transferencias.listar();
+    const transferenciasComDados = await Promise.all(
+      transferenciasData.map(async (t) => {
+        const [jogador, origem, destino, jogadorTroca] = await Promise.all([
+          db.jogadores.buscarPorId(t.jogador_id),
+          db.clubes.buscarPorId(t.clube_origem_id),
+          db.clubes.buscarPorId(t.clube_destino_id),
+          t.jogador_troca_id ? db.jogadores.buscarPorId(t.jogador_troca_id) : Promise.resolve(null)
+        ]);
+        return { ...t, jogador, origem, destino, jogadorTroca };
+      })
+    );
+    setTransferenciasComDados(transferenciasComDados);
   };
 
-  const handleRejeitar = (id: string) => {
-    db.transferencias.rejeitar(id);
+  const handleRejeitar = async (id: string) => {
+    await db.transferencias.rejeitar(id);
+    // Recarregar transferências
+    const transferenciasData = await db.transferencias.listar();
+    const transferenciasComDados = await Promise.all(
+      transferenciasData.map(async (t) => {
+        const [jogador, origem, destino, jogadorTroca] = await Promise.all([
+          db.jogadores.buscarPorId(t.jogador_id),
+          db.clubes.buscarPorId(t.clube_origem_id),
+          db.clubes.buscarPorId(t.clube_destino_id),
+          t.jogador_troca_id ? db.jogadores.buscarPorId(t.jogador_troca_id) : Promise.resolve(null)
+        ]);
+        return { ...t, jogador, origem, destino, jogadorTroca };
+      })
+    );
+    setTransferenciasComDados(transferenciasComDados);
   };
 
-  const renderTransferencia = (t: Transferencia) => {
-    const jogador = db.jogadores.buscarPorId(t.jogador_id);
-    const origem = db.clubes.buscarPorId(t.clube_origem_id);
-    const destino = db.clubes.buscarPorId(t.clube_destino_id);
-    const jogadorTroca = t.jogador_troca_id ? db.jogadores.buscarPorId(t.jogador_troca_id) : null;
-
+  const renderTransferencia = (t: TransferenciaComDados) => {
     return (
       <div key={t.id} className="bg-gray-900 rounded-xl p-4 border border-gray-800">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4 flex-1">
             {/* Clubes envolvidos */}
             <div className="flex flex-col items-center">
-              {origem?.escudo_url ? (
+              {t.origem?.escudo_url ? (
                 <img
-                  src={origem.escudo_url}
-                  alt={origem.nome}
+                  src={t.origem.escudo_url}
+                  alt={t.origem.nome}
                   className="w-8 h-8 object-cover"
                 />
               ) : (
                 <div
                   className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs"
-                  style={{ backgroundColor: origem?.cor_principal || '#666' }}
+                  style={{ backgroundColor: t.origem?.cor_principal || '#666' }}
                 >
-                  {origem?.nome.charAt(0)}
+                  {t.origem?.nome?.charAt(0)}
                 </div>
               )}
               <ArrowLeftRight className="w-4 h-4 text-gray-500 my-1" />
-              {destino?.escudo_url ? (
+              {t.destino?.escudo_url ? (
                 <img
-                  src={destino.escudo_url}
-                  alt={destino.nome}
+                  src={t.destino.escudo_url}
+                  alt={t.destino.nome}
                   className="w-8 h-8 object-cover"
                 />
               ) : (
                 <div
                   className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs"
-                  style={{ backgroundColor: destino?.cor_principal || '#666' }}
+                  style={{ backgroundColor: t.destino?.cor_principal || '#666' }}
                 >
-                  {destino?.nome.charAt(0)}
+                  {t.destino?.nome?.charAt(0)}
                 </div>
               )}
             </div>
@@ -84,19 +141,19 @@ export function Transferencias() {
             {/* Info */}
             <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                {jogador?.foto_url ? (
+                {t.jogador?.foto_url ? (
                   <img
-                    src={jogador.foto_url}
-                    alt={jogador.nome}
+                    src={t.jogador.foto_url}
+                    alt={t.jogador.nome}
                     className="w-8 h-8 object-cover"
                   />
                 ) : (
                   <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs bg-gray-800">
-                    {jogador?.numero || '?'}
+                    {t.jogador?.numero || '?'}
                   </div>
                 )}
-                <p className="font-medium">{jogador?.nome}</p>
-                <span className="text-xs text-gray-500">{jogador?.posicao}</span>
+                <p className="font-medium">{t.jogador?.nome}</p>
+                <span className="text-xs text-gray-500">{t.jogador?.posicao}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${
                   t.status === 'aceita' ? 'bg-green-500/20 text-green-500' :
                   t.status === 'rejeitada' ? 'bg-red-500/20 text-red-500' :
@@ -108,9 +165,9 @@ export function Transferencias() {
               
               <div className="mt-2 space-y-1 text-sm">
                 <p className="text-gray-400">
-                  <span className="text-gray-500">{origem?.nome}</span>
+                  <span className="text-gray-500">{t.origem?.nome}</span>
                   {' → '}
-                  <span className="text-gray-500">{destino?.nome}</span>
+                  <span className="text-gray-500">{t.destino?.nome}</span>
                 </p>
                 
                 <div className="flex items-center gap-2">
@@ -125,21 +182,21 @@ export function Transferencias() {
                   </div>
                 )}
 
-                {jogadorTroca && (
+                {t.jogadorTroca && (
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400">Troca:</span>
-                    {jogadorTroca.foto_url ? (
+                    {t.jogadorTroca.foto_url ? (
                       <img
-                        src={jogadorTroca.foto_url}
-                        alt={jogadorTroca.nome}
+                        src={t.jogadorTroca.foto_url}
+                        alt={t.jogadorTroca.nome}
                         className="w-6 h-6 object-cover"
                       />
                     ) : (
                       <div className="w-6 h-6 flex items-center justify-center text-white font-bold text-xs bg-gray-800">
-                        {jogadorTroca.numero}
+                        {t.jogadorTroca.numero}
                       </div>
                     )}
-                    <span className="text-gray-300">{jogadorTroca.nome} ({jogadorTroca.posicao})</span>
+                    <span className="text-gray-300">{t.jogadorTroca.nome} ({t.jogadorTroca.posicao})</span>
                   </div>
                 )}
 
@@ -176,18 +233,26 @@ export function Transferencias() {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-yellow-500">Carregando...</div>
+      </div>
+    );
+  }
+
   if (!isDono) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Transferências</h1>
-        {todasTransferencias.length === 0 ? (
+        {transferenciasComDados.length === 0 ? (
           <div className="bg-gray-900 rounded-xl p-8 border border-gray-800 text-center">
             <ArrowLeftRight className="w-12 h-12 text-gray-600 mx-auto mb-3" />
             <p className="text-gray-400">Nenhuma transferência registrada</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {todasTransferencias.map(renderTransferencia)}
+            {transferenciasComDados.map(renderTransferencia)}
           </div>
         )}
       </div>

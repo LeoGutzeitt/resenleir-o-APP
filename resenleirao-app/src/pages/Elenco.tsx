@@ -1,8 +1,9 @@
 import { useParams, Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { Users, Plus, Trash2, Camera } from 'lucide-react';
+import type { Clube, Jogador } from '../types';
 
 export function Elenco() {
   const { clubeId } = useParams<{ clubeId: string }>();
@@ -12,11 +13,38 @@ export function Elenco() {
   const [novaPosicao, setNovaPosicao] = useState<'Goleiro' | 'Zagueiro' | 'Lateral' | 'Meio-Campo' | 'Atacante'>('Atacante');
   const [novoNumero, setNovoNumero] = useState('');
   const [fotoJogador, setFotoJogador] = useState<File | null>(null);
+  const [clube, setClube] = useState<Clube | null>(null);
+  const [jogadores, setJogadores] = useState<Jogador[]>([]);
+  const [meusClube, setMeusClube] = useState<Clube | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const clube = db.clubes.buscarPorId(clubeId || '');
-  const jogadores = clubeId ? db.jogadores.listar(clubeId) : [];
-  const meusClube = user && isDono ? db.clubes.buscarPorDono(user.id) : null;
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!clubeId) return;
+      
+      const [clubeData, jogadoresData, meusClubeData] = await Promise.all([
+        db.clubes.buscarPorId(clubeId),
+        db.jogadores.listar(clubeId),
+        user && isDono ? db.clubes.buscarPorDono(user.id) : Promise.resolve(null)
+      ]);
+      
+      setClube(clubeData || null);
+      setJogadores(jogadoresData);
+      setMeusClube(meusClubeData);
+      setLoading(false);
+    };
+    fetchData();
+  }, [clubeId, user, isDono]);
+
   const podeEditar = isAdmin || (isDono && meusClube?.id === clubeId);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-yellow-500">Carregando...</div>
+      </div>
+    );
+  }
 
   if (!clube) {
     return (
@@ -42,7 +70,7 @@ export function Elenco() {
       });
     }
 
-    db.jogadores.criar({
+    await db.jogadores.criar({
       nome: novoNome,
       posicao: novaPosicao,
       numero: parseInt(novoNumero),
@@ -52,15 +80,21 @@ export function Elenco() {
       valor_mercado: 10000000,
       jogos_suspensao: 0,
     });
+    
+    // Recarregar jogadores
+    const novosJogadores = await db.jogadores.listar(clubeId);
+    setJogadores(novosJogadores);
+    
     setShowAdd(false);
     setNovoNome('');
     setNovoNumero('');
     setFotoJogador(null);
   };
 
-  const handleRemove = (id: string) => {
+  const handleRemove = async (id: string) => {
     if (confirm('Tem certeza que deseja remover este jogador?')) {
-      db.jogadores.remover(id);
+      await db.jogadores.remover(id);
+      setJogadores(jogadores.filter(j => j.id !== id));
     }
   };
 

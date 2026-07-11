@@ -1,33 +1,53 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { Users, Swords, Goal, ArrowLeftRight, Camera, Save, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import type { Clube, Jogador, Jogo, ArtilheiroRanking } from '../types';
 
 export function MeuClube() {
   const { user } = useAuth();
   const [showEditEscudo, setShowEditEscudo] = useState(false);
   const [novoEscudo, setNovoEscudo] = useState<File | null>(null);
+  const [meusClube, setMeusClube] = useState<Clube | null>(null);
+  const [jogadores, setJogadores] = useState<Jogador[]>([]);
+  const [jogos, setJogos] = useState<Jogo[]>([]);
+  const [tabela, setTabela] = useState<any[]>([]);
+  const [artilharia, setArtilharia] = useState<ArtilheiroRanking[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!user) return null;
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+      
+      const clube = await db.clubes.buscarPorDono(user.id);
+      if (!clube) {
+        setMeusClube(null);
+        setLoading(false);
+        return;
+      }
+      
+      const [jogadoresData, jogosData, tabelaData, artilhariaData] = await Promise.all([
+        db.jogadores.listar(clube.id),
+        db.jogos.buscarPorClube(clube.id),
+        db.views.tabela(),
+        db.views.artilharia()
+      ]);
+      
+      setMeusClube(clube);
+      setJogadores(jogadoresData);
+      setJogos(jogosData);
+      setTabela(tabelaData);
+      setArtilharia(artilhariaData.filter((a: any) => a.clube_id === clube.id));
+      setLoading(false);
+    };
+    fetchData();
+  }, [user]);
 
-  const meusClube = db.clubes.buscarPorDono(user.id);
-  if (!meusClube) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-400">Você não possui um clube associado</p>
-      </div>
-    );
-  }
-
-  const jogadores = db.jogadores.listar(meusClube.id);
-  const jogos = db.jogos.buscarPorClube(meusClube.id);
-  const tabela = db.views.tabela();
-  const minhaPosicao = tabela.find(t => t.clube_id === meusClube.id);
-  const artilharia = db.views.artilharia().filter(a => a.clube_id === meusClube.id);
+  const minhaPosicao = tabela.find((t: any) => t.clube_id === meusClube?.id);
 
   const handleSalvarEscudo = async () => {
-    if (!novoEscudo) return;
+    if (!novoEscudo || !meusClube) return;
 
     const reader = new FileReader();
     const escudo_url = await new Promise((resolve) => {
@@ -35,10 +55,26 @@ export function MeuClube() {
       reader.readAsDataURL(novoEscudo);
     });
 
-    db.clubes.atualizar(meusClube.id, { escudo_url: escudo_url as string });
+    await db.clubes.atualizar(meusClube.id, { escudo_url: escudo_url as string });
     setShowEditEscudo(false);
     setNovoEscudo(null);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-yellow-500">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (!meusClube) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-400">Você não possui um clube associado</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -190,7 +226,7 @@ export function MeuClube() {
                       className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs"
                       style={{ backgroundColor: adversario?.cor_principal || '#666' }}
                     >
-                      {adversario?.nome.charAt(0)}
+                      {adversario?.nome?.charAt(0)}
                     </div>
                   )}
                   <div>

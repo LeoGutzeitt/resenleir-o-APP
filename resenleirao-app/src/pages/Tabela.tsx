@@ -1,12 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { db } from "../lib/db";
+import type { TabelaLinha, Clube } from "../types";
 
 export function Tabela() {
   const [modoVisualizacao, setModoVisualizacao] = useState<
     "pontos_corridos" | "mata_mata"
   >("pontos_corridos");
-  const tabela = db.views.tabela();
-  const clubes = db.clubes.listar();
+  const [tabela, setTabela] = useState<TabelaLinha[]>([]);
+  const [clubes, setClubes] = useState<Clube[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [tabelaData, clubesData] = await Promise.all([
+        db.views.tabela(),
+        db.clubes.listar()
+      ]);
+      setTabela(tabelaData);
+      setClubes(clubesData);
+      setLoading(false);
+    };
+    fetchData();
+  }, []);
 
   const getEscudo = (clubeId: string) => {
     const clube = clubes.find(c => c.id === clubeId);
@@ -21,6 +36,14 @@ export function Tabela() {
     }
     return "";
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-yellow-500">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div>

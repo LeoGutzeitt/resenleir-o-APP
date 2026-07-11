@@ -2,32 +2,34 @@ import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { Newspaper, Plus, Star, Calendar, User, X } from 'lucide-react';
+import type { Noticia, Clube } from '../types';
 
 export function Noticias() {
   const { user, isDono } = useAuth();
-  const [noticias, setNoticias] = useState<any[]>([]);
-  const [noticiasDestaque, setNoticiasDestaque] = useState<any[]>([]);
+  const [noticias, setNoticias] = useState<Noticia[]>([]);
+  const [noticiasDestaque, setNoticiasDestaque] = useState<Noticia[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [titulo, setTitulo] = useState('');
   const [conteudo, setConteudo] = useState('');
   const [destaque, setDestaque] = useState(false);
   const [imagem, setImagem] = useState<File | null>(null);
-  const [meuClube, setMeuClube] = useState<any>(null);
+  const [meuClube, setMeuClube] = useState<Clube | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const carregarNoticias = async () => {
+      const [todasNoticias, destaques, clube] = await Promise.all([
+        db.noticias.listar(),
+        db.noticias.listarDestaques(),
+        user && isDono ? db.clubes.buscarPorDono(user.id) : Promise.resolve(null)
+      ]);
+      setNoticias(todasNoticias);
+      setNoticiasDestaque(destaques);
+      setMeuClube(clube || null);
+      setLoading(false);
+    };
     carregarNoticias();
-    if (user && isDono) {
-      const clube = db.clubes.buscarPorDono(user.id);
-      setMeuClube(clube);
-    }
   }, [user, isDono]);
-
-  const carregarNoticias = () => {
-    const todasNoticias = db.noticias.listar();
-    const destaques = db.noticias.listarDestaques();
-    setNoticias(todasNoticias);
-    setNoticiasDestaque(destaques);
-  };
 
   const handleCriarNoticia = async () => {
     if (!titulo || !conteudo || !meuClube) return;
@@ -43,7 +45,7 @@ export function Noticias() {
       });
     }
 
-    db.noticias.criar({
+    await db.noticias.criar({
       titulo,
       conteudo,
       clube_id: meuClube.id,
@@ -57,7 +59,14 @@ export function Noticias() {
     setDestaque(false);
     setImagem(null);
     setShowForm(false);
-    carregarNoticias();
+    
+    // Recarregar notícias
+    const [todasNoticias, destaques] = await Promise.all([
+      db.noticias.listar(),
+      db.noticias.listarDestaques()
+    ]);
+    setNoticias(todasNoticias);
+    setNoticiasDestaque(destaques);
   };
 
   const formatarData = (data: string) => {
@@ -71,8 +80,17 @@ export function Noticias() {
     });
   };
 
-  const NoticiaCard = ({ noticia, isDestaque }: { noticia: any; isDestaque?: boolean }) => {
-    const clube = db.clubes.buscarPorId(noticia.clube_id);
+  const getClubeInfo = async (clubeId: string) => {
+    const clube = await db.clubes.buscarPorId(clubeId);
+    return clube;
+  };
+
+  const NoticiaCard = ({ noticia, isDestaque }: { noticia: Noticia; isDestaque?: boolean }) => {
+    const [clube, setClube] = useState<Clube | null>(null);
+    
+    useEffect(() => {
+      getClubeInfo(noticia.clube_id).then(c => setClube(c || null));
+    }, [noticia.clube_id]);
     
     return (
       <div className={`bg-gray-900 rounded-xl overflow-hidden border ${isDestaque ? 'border-yellow-500/50' : 'border-gray-800'}`}>
@@ -102,9 +120,9 @@ export function Noticias() {
                 className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
                 style={{ backgroundColor: clube?.cor_principal || '#666' }}
               >
-                {clube?.nome.charAt(0)}
+                {clube?.nome?.charAt(0) || '?'}
               </div>
-              <span>{clube?.nome}</span>
+              <span>{clube?.nome || 'Carregando...'}</span>
             </div>
             <div className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
@@ -117,6 +135,14 @@ export function Noticias() {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-yellow-500">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

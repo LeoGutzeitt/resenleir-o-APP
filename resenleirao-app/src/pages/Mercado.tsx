@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { Store, Send, Search, DollarSign } from 'lucide-react';
+import type { Clube, Jogador, Transferencia } from '../types';
 
 export function Mercado() {
   const { user, isDono } = useAuth();
@@ -14,10 +15,27 @@ export function Mercado() {
   const [valor, setValor] = useState('');
   const [jogadorTrocaId, setJogadorTrocaId] = useState('');
   const [mensagem, setMensagem] = useState('');
+  const [clubes, setClubes] = useState<Clube[]>([]);
+  const [todosJogadores, setTodosJogadores] = useState<Jogador[]>([]);
+  const [meusClube, setMeusClube] = useState<Clube | null>(null);
+  const [jogadorSelecionado, setJogadorSelecionado] = useState<Jogador | null>(null);
+  const [clubeJogador, setClubeJogador] = useState<Clube | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const clubes = db.clubes.listar();
-  const todosJogadores = db.jogadores.listar();
-  const meusClube = user && isDono ? db.clubes.buscarPorDono(user.id) : null;
+  useEffect(() => {
+    const fetchData = async () => {
+      const [clubesData, jogadoresData, meuClubeData] = await Promise.all([
+        db.clubes.listar(),
+        db.jogadores.listar(),
+        user && isDono ? db.clubes.buscarPorDono(user.id) : Promise.resolve(null)
+      ]);
+      setClubes(clubesData);
+      setTodosJogadores(jogadoresData);
+      setMeusClube(meuClubeData || null);
+      setLoading(false);
+    };
+    fetchData();
+  }, [user, isDono]);
 
   const posicoes = ['', 'Goleiro', 'Zagueiro', 'Lateral', 'Meio-Campo', 'Atacante'];
 
@@ -29,16 +47,13 @@ export function Mercado() {
     return true;
   });
 
-  const jogadorSelecionado = jogadorAlvo ? db.jogadores.buscarPorId(jogadorAlvo) : null;
-  const clubeJogador = jogadorSelecionado ? db.clubes.buscarPorId(jogadorSelecionado.clube_id) : null;
-
-  const handleProposta = (e: React.FormEvent) => {
+  const handleProposta = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!jogadorAlvo || !meusClube || !jogadorSelecionado) return;
 
     const valorNum = parseInt(valor) || 0;
 
-    const result = db.transferencias.criar({
+    const result = await db.transferencias.criar({
       jogador_id: jogadorAlvo,
       clube_origem_id: jogadorSelecionado.clube_id,
       clube_destino_id: meusClube.id,
@@ -68,6 +83,23 @@ export function Mercado() {
     if (v >= 1000) return `R$ ${(v / 1000).toFixed(0)}K`;
     return `R$ ${v}`;
   };
+
+  const abrirProposta = async (jogadorId: string) => {
+    const jogador = await db.jogadores.buscarPorId(jogadorId);
+    const clube = jogador ? await db.clubes.buscarPorId(jogador.clube_id) : null;
+    setJogadorSelecionado(jogador || null);
+    setClubeJogador(clube || null);
+    setJogadorAlvo(jogadorId);
+    setShowProposta(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-yellow-500">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -119,15 +151,14 @@ export function Mercado() {
       {/* Lista de Jogadores */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {jogadoresFiltrados.map(jogador => {
-          const clube = db.clubes.buscarPorId(jogador.clube_id);
+          const clube = clubes.find(c => c.id === jogador.clube_id);
           return (
             <div
               key={jogador.id}
               className="bg-gray-900 rounded-xl p-4 border border-gray-800 hover:border-yellow-500/50 transition-colors cursor-pointer"
               onClick={() => {
                 if (isDono && meusClube) {
-                  setJogadorAlvo(jogador.id);
-                  setShowProposta(true);
+                  abrirProposta(jogador.id);
                 }
               }}
             >
@@ -164,7 +195,7 @@ export function Mercado() {
                       className="w-4 h-4 flex items-center justify-center text-white font-bold"
                       style={{ backgroundColor: clube?.cor_principal || '#666' }}
                     >
-                      {clube?.nome.charAt(0)}
+                      {clube?.nome?.charAt(0)}
                     </div>
                   )}
                   {clube?.nome}
@@ -173,8 +204,7 @@ export function Mercado() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setJogadorAlvo(jogador.id);
-                      setShowProposta(true);
+                      abrirProposta(jogador.id);
                     }}
                     className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500/10 text-yellow-500 rounded-lg text-xs font-medium hover:bg-yellow-500/20 transition-colors"
                   >
@@ -202,22 +232,22 @@ export function Mercado() {
             <h2 className="text-lg font-semibold mb-2">Nova Proposta</h2>
             
             {/* Jogador Alvo */}
-              <div className="bg-gray-800 rounded-lg p-3 mb-4 flex items-center gap-3">
-                {jogadorSelecionado.foto_url ? (
-                  <img
-                    src={jogadorSelecionado.foto_url}
-                    alt={jogadorSelecionado.nome}
-                    className="w-10 h-10 object-cover"
-                  />
-                ) : (
-                  <div className="w-10 h-10 flex items-center justify-center text-white font-bold bg-gray-700">
-                    {jogadorSelecionado.numero}
-                  </div>
-                )}
-                <div className="flex-1">
-                  <p className="font-medium">{jogadorSelecionado.nome}</p>
-                  <p className="text-sm text-gray-400">{jogadorSelecionado.posicao} - {clubeJogador?.nome}</p>
+            <div className="bg-gray-800 rounded-lg p-3 mb-4 flex items-center gap-3">
+              {jogadorSelecionado.foto_url ? (
+                <img
+                  src={jogadorSelecionado.foto_url}
+                  alt={jogadorSelecionado.nome}
+                  className="w-10 h-10 object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 flex items-center justify-center text-white font-bold bg-gray-700">
+                  {jogadorSelecionado.numero}
                 </div>
+              )}
+              <div className="flex-1">
+                <p className="font-medium">{jogadorSelecionado.nome}</p>
+                <p className="text-sm text-gray-400">{jogadorSelecionado.posicao} - {clubeJogador?.nome}</p>
+              </div>
               <div className="text-right">
                 <p className="text-sm text-gray-400">Valor de mercado</p>
                 <p className="font-bold text-yellow-500">{formatValor(jogadorSelecionado.valor_mercado)}</p>
@@ -270,27 +300,6 @@ export function Mercado() {
                 </p>
               </div>
 
-              {/* Jogador para Troca */}
-              {(tipoProposta === 'troca' || tipoProposta === 'jogador_mais_valor') && meusClube && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    {tipoProposta === 'troca' ? 'Jogador para Troca' : 'Jogador + Valor - Selecione seu jogador'}
-                  </label>
-                  <select
-                    value={jogadorTrocaId}
-                    onChange={(e) => setJogadorTrocaId(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                  >
-                    <option value="">Selecione um jogador</option>
-                    {db.jogadores.listar(meusClube.id).map(j => (
-                      <option key={j.id} value={j.id}>
-                        {j.nome} - {j.posicao} ({formatValor(j.valor_mercado)})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               {/* Mensagem */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Mensagem (opcional)</label>
@@ -309,7 +318,6 @@ export function Mercado() {
                   <ul className="mt-1 space-y-1">
                     <li className="text-gray-300">
                       • Enviando: <span className="text-yellow-500">{formatValor(parseInt(valor) || 0)}</span>
-                      {jogadorTrocaId && ` + ${db.jogadores.buscarPorId(jogadorTrocaId)?.nome}`}
                     </li>
                     <li className="text-gray-300">
                       • Recebendo: <span className="text-green-500">{jogadorSelecionado.nome}</span>

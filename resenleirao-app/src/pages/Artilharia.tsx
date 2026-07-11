@@ -1,12 +1,29 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { db } from '../lib/db';
 import { Goal, Award } from 'lucide-react';
+import type { ArtilheiroRanking, AssistenteRanking, Jogador } from '../types';
 
 export function Artilharia() {
   const [aba, setAba] = useState<'gols' | 'assistencias'>('gols');
-  const artilharia = db.views.artilharia();
-  const assistencias = db.views.assistencias();
-  const jogadores = db.jogadores.listar();
+  const [artilharia, setArtilharia] = useState<ArtilheiroRanking[]>([]);
+  const [assistencias, setAssistencias] = useState<AssistenteRanking[]>([]);
+  const [jogadores, setJogadores] = useState<Jogador[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [artilhariaData, assistenciasData, jogadoresData] = await Promise.all([
+        db.views.artilharia(),
+        db.views.assistencias(),
+        db.jogadores.listar()
+      ]);
+      setArtilharia(artilhariaData);
+      setAssistencias(assistenciasData);
+      setJogadores(jogadoresData);
+      setLoading(false);
+    };
+    fetchData();
+  }, []);
 
   const getFotoJogador = (jogadorId: string) => {
     const jogador = jogadores.find(j => j.id === jogadorId);
@@ -15,6 +32,14 @@ export function Artilharia() {
 
   const dados = aba === 'gols' ? artilharia : assistencias;
   const valorKey = aba === 'gols' ? 'gols' : 'assistencias';
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-yellow-500">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -102,28 +127,28 @@ export function Artilharia() {
       <div className="md:hidden space-y-2">
         {dados.map((item, index) => (
           <div key={item.jogador_id} className="bg-gray-900 rounded-xl p-4 border border-gray-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
-                  index === 0 ? 'bg-yellow-500/20 text-yellow-500' : 'bg-gray-800 text-gray-400'
-                }`}>
-                  {index + 1}
-                </div>
-                {getFotoJogador(item.jogador_id) ? (
-                  <img
-                    src={getFotoJogador(item.jogador_id)!}
-                    alt={item.jogador_nome}
-                    className="w-8 h-8 object-cover"
-                  />
-                ) : (
-                  <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs bg-gray-800">
-                    {item.jogador_nome.charAt(0)}
-                  </div>
-                )}
-                <div>
-                  <p className="font-medium">{item.jogador_nome}</p>
-                  <p className="text-sm text-gray-400">{item.clube_nome}</p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                index === 0 ? 'bg-yellow-500/20 text-yellow-500' : 'bg-gray-800 text-gray-400'
+              }`}>
+                {index + 1}
               </div>
+              {getFotoJogador(item.jogador_id) ? (
+                <img
+                  src={getFotoJogador(item.jogador_id)!}
+                  alt={item.jogador_nome}
+                  className="w-8 h-8 object-cover"
+                />
+              ) : (
+                <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs bg-gray-800">
+                  {item.jogador_nome.charAt(0)}
+                </div>
+              )}
+              <div>
+                <p className="font-medium">{item.jogador_nome}</p>
+                <p className="text-sm text-gray-400">{item.clube_nome}</p>
+              </div>
+            </div>
             <div className="text-right">
               <span className={`text-xl font-bold ${index === 0 ? 'text-yellow-500' : 'text-white'}`}>
                 {Number(item[valorKey as keyof typeof item])}
