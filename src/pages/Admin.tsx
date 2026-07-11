@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, Plus, Trash2, Edit3, Save, X, DollarSign, Users, CheckCircle, Upload } from 'lucide-react';
+import { Shield, Plus, Trash2, Edit3, Save, X, DollarSign, Users, CheckCircle } from 'lucide-react';
+import type { Clube, Jogador, Jogo } from '../types';
+
+type ValoresEstatistica = {
+  gols: number;
+  assistencias: number;
+  cartoes_amarelos: number;
+  cartoes_vermelhos: number;
+};
 
 export function Admin() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, loading: authLoading } = useAuth();
   const [aba, setAba] = useState<'clubes' | 'jogos' | 'jogadores'>('clubes');
   const [showAddClube, setShowAddClube] = useState(false);
   const [novoClubeNome, setNovoClubeNome] = useState('');
@@ -17,11 +25,58 @@ export function Admin() {
   const [editGolsCasa, setEditGolsCasa] = useState('');
   const [editGolsFora, setEditGolsFora] = useState('');
   const [jogoSelecionado, setJogoSelecionado] = useState<string | null>(null);
-  const [estatisticasJogo, setEstatisticasJogo] = useState<Map<string, {gols: number, assistencias: number, cartoes_amarelos: number, cartoes_vermelhos: number}>>(new Map());
+  const [estatisticasJogo, setEstatisticasJogo] = useState<Map<string, ValoresEstatistica>>(new Map());
+  const [clubes, setClubes] = useState<Clube[]>([]);
+  const [jogos, setJogos] = useState<Jogo[]>([]);
+  const [todosJogadores, setTodosJogadores] = useState<Jogador[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
-  const clubes = db.clubes.listar();
-  const jogos = db.jogos.listar();
-  const todosJogadores = db.jogadores.listar();
+  useEffect(() => {
+    let ativo = true;
+
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
+
+    const carregar = async () => {
+      setLoading(true);
+      setErro('');
+      try {
+        const [clubesData, jogosData, jogadoresData] = await Promise.all([
+          db.clubes.listar(),
+          db.jogos.listar(),
+          db.jogadores.listar(),
+        ]);
+        if (!ativo) return;
+        setClubes(clubesData);
+        setJogos(jogosData);
+        setTodosJogadores(jogadoresData);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar os dados administrativos.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
+    };
+
+    carregar();
+    return () => {
+      ativo = false;
+    };
+  }, [isAdmin]);
+
+  const clubesPorId = useMemo(() => new Map(clubes.map((clube) => [clube.id, clube])), [clubes]);
+  const jogosPorId = useMemo(() => new Map(jogos.map((jogo) => [jogo.id, jogo])), [jogos]);
+  const jogadoresPorId = useMemo(
+    () => new Map(todosJogadores.map((jogador) => [jogador.id, jogador])),
+    [todosJogadores],
+  );
+
+  if (authLoading || (isAdmin && loading)) {
+    return <div className="text-center py-12 text-yellow-500">Carregando painel administrativo...</div>;
+  }
 
   if (!isAdmin) {
     return (
@@ -47,27 +102,29 @@ export function Admin() {
       });
     }
 
-    db.clubes.criar({
+    const clube = await db.clubes.criar({
       nome: novoClubeNome,
       escudo_url,
       cor_principal: novoClubeCor,
       usuario_dono_id: null,
       orcamento: 100000000,
     });
+    if (clube) setClubes((atuais) => [...atuais, clube]);
     setShowAddClube(false);
     setNovoClubeNome('');
     setNovoClubeCor('#FF4500');
     setNovoClubeEscudo(null);
   };
 
-  const handleRemoveClube = (id: string) => {
+  const handleRemoveClube = async (id: string) => {
     if (confirm('Tem certeza que deseja remover este clube?')) {
-      db.clubes.remover(id);
+      const removido = await db.clubes.remover(id);
+      if (removido) setClubes((atuais) => atuais.filter((clube) => clube.id !== id));
     }
   };
 
   const handleEditClube = (id: string) => {
-    const clube = db.clubes.buscarPorId(id);
+    const clube = clubesPorId.get(id);
     if (clube) {
       setEditingClubeId(id);
       setEditClubeNome(clube.nome);
@@ -75,16 +132,17 @@ export function Admin() {
     }
   };
 
-  const handleSaveEdit = (id: string) => {
-    db.clubes.atualizar(id, { 
+  const handleSaveEdit = async (id: string) => {
+    const clube = await db.clubes.atualizar(id, {
       nome: editClubeNome,
       orcamento: parseInt(editClubeOrcamento) || 0
     });
+    if (clube) setClubes((atuais) => atuais.map((atual) => atual.id === id ? clube : atual));
     setEditingClubeId(null);
   };
 
   const handleEditJogo = (id: string) => {
-    const jogo = db.jogos.buscarPorId(id);
+    const jogo = jogosPorId.get(id);
     if (jogo) {
       setEditingJogoId(id);
       setEditGolsCasa(String(jogo.gols_casa || 0));
@@ -92,20 +150,21 @@ export function Admin() {
     }
   };
 
-  const handleSaveJogo = (id: string) => {
+  const handleSaveJogo = async (id: string) => {
     const golsCasa = parseInt(editGolsCasa) || 0;
     const golsFora = parseInt(editGolsFora) || 0;
-    db.jogos.atualizarResultado(id, golsCasa, golsFora);
+    const jogo = await db.jogos.atualizarResultado(id, golsCasa, golsFora);
+    if (jogo) setJogos((atuais) => atuais.map((atual) => atual.id === id ? jogo : atual));
     setEditingJogoId(null);
   };
 
-  const handleAbrirEstatisticas = (jogoId: string) => {
-    const jogo = db.jogos.buscarPorId(jogoId);
+  const handleAbrirEstatisticas = async (jogoId: string) => {
+    const jogo = jogosPorId.get(jogoId);
     if (!jogo) return;
 
-    const jogadoresCasa = db.jogadores.listar(jogo.clube_casa_id);
-    const jogadoresFora = db.jogadores.listar(jogo.clube_fora_id);
-    const stats = db.estatisticas.listarPorJogo(jogoId);
+    const jogadoresCasa = todosJogadores.filter((jogador) => jogador.clube_id === jogo.clube_casa_id);
+    const jogadoresFora = todosJogadores.filter((jogador) => jogador.clube_id === jogo.clube_fora_id);
+    const stats = await db.estatisticas.listarPorJogo(jogoId);
     
     const novasStats = new Map<string, {gols: number, assistencias: number, cartoes_amarelos: number, cartoes_vermelhos: number}>();
     
@@ -123,18 +182,16 @@ export function Admin() {
     setJogoSelecionado(jogoId);
   };
 
-  const handleSalvarEstatisticas = (jogoId: string) => {
-    const jogo = db.jogos.buscarPorId(jogoId);
+  const handleSalvarEstatisticas = async (jogoId: string) => {
+    const jogo = jogosPorId.get(jogoId);
     if (!jogo) return;
 
-    const statsAntigas = db.estatisticas.listarPorJogo(jogoId);
-    statsAntigas.forEach(stat => {
-      db.estatisticas.remover(stat.id);
-    });
+    const statsAntigas = await db.estatisticas.listarPorJogo(jogoId);
+    await Promise.all(statsAntigas.map((stat) => db.estatisticas.remover(stat.id)));
 
-    estatisticasJogo.forEach((valores, jogadorId) => {
+    for (const [jogadorId, valores] of estatisticasJogo) {
       if (valores.gols > 0 || valores.assistencias > 0 || valores.cartoes_amarelos > 0 || valores.cartoes_vermelhos > 0) {
-        db.estatisticas.criar({
+        await db.estatisticas.criar({
           jogador_id: jogadorId,
           jogo_id: jogoId,
           gols: valores.gols,
@@ -143,7 +200,7 @@ export function Admin() {
           cartoes_vermelhos: valores.cartoes_vermelhos
         });
 
-        const jogador = db.jogadores.buscarPorId(jogadorId);
+        const jogador = jogadoresPorId.get(jogadorId);
         if (jogador) {
           let jogosSuspensao = 0;
           const cartoesAmarelos = valores.cartoes_amarelos;
@@ -153,14 +210,17 @@ export function Admin() {
           jogosSuspensao += cartoesVermelhos;
           
           if (jogosSuspensao > 0) {
-            db.jogadores.atualizar(jogadorId, {
+            const jogadorAtualizado = await db.jogadores.atualizar(jogadorId, {
               jogos_suspensao: jogador.jogos_suspensao + jogosSuspensao,
               status: 'suspenso'
             });
+            if (jogadorAtualizado) {
+              setTodosJogadores((atuais) => atuais.map((atual) => atual.id === jogadorId ? jogadorAtualizado : atual));
+            }
           }
         }
       }
-    });
+    }
 
     setJogoSelecionado(null);
     setEstatisticasJogo(new Map());
@@ -175,23 +235,21 @@ export function Admin() {
     });
   };
 
-  const handleRemoveEstatistica = (id: string) => {
-    db.estatisticas.remover(id);
-  };
-
-  const handleCumpriuSuspensao = (jogadorId: string) => {
-    const jogador = db.jogadores.buscarPorId(jogadorId);
+  const handleCumpriuSuspensao = async (jogadorId: string) => {
+    const jogador = jogadoresPorId.get(jogadorId);
     if (jogador && jogador.jogos_suspensao > 0) {
       const novaSuspensao = jogador.jogos_suspensao - 1;
       if (novaSuspensao <= 0) {
-        db.jogadores.atualizar(jogadorId, {
+        const atualizado = await db.jogadores.atualizar(jogadorId, {
           jogos_suspensao: 0,
           status: 'ativo'
         });
+        if (atualizado) setTodosJogadores((atuais) => atuais.map((atual) => atual.id === jogadorId ? atualizado : atual));
       } else {
-        db.jogadores.atualizar(jogadorId, {
+        const atualizado = await db.jogadores.atualizar(jogadorId, {
           jogos_suspensao: novaSuspensao
         });
+        if (atualizado) setTodosJogadores((atuais) => atuais.map((atual) => atual.id === jogadorId ? atualizado : atual));
       }
     }
   };
@@ -199,6 +257,12 @@ export function Admin() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Painel Administrativo</h1>
+
+      {erro && (
+        <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {erro}
+        </div>
+      )}
 
       <div className="flex gap-2 border-b border-gray-800 pb-2">
         {(['clubes', 'jogos', 'jogadores'] as const).map(tab => (
@@ -412,8 +476,8 @@ export function Admin() {
               </thead>
               <tbody>
                 {jogos.map(jogo => {
-                  const casa = db.clubes.buscarPorId(jogo.clube_casa_id);
-                  const fora = db.clubes.buscarPorId(jogo.clube_fora_id);
+                  const casa = clubesPorId.get(jogo.clube_casa_id);
+                  const fora = clubesPorId.get(jogo.clube_fora_id);
                   const isEditing = editingJogoId === jogo.id;
                   
                   return (
@@ -540,13 +604,13 @@ export function Admin() {
             </div>
             
             {(() => {
-              const jogo = db.jogos.buscarPorId(jogoSelecionado);
+              const jogo = jogosPorId.get(jogoSelecionado);
               if (!jogo) return null;
-              
-              const jogadoresCasa = db.jogadores.listar(jogo.clube_casa_id);
-              const jogadoresFora = db.jogadores.listar(jogo.clube_fora_id);
-              const clubeCasa = db.clubes.buscarPorId(jogo.clube_casa_id);
-              const clubeFora = db.clubes.buscarPorId(jogo.clube_fora_id);
+
+              const jogadoresCasa = todosJogadores.filter((jogador) => jogador.clube_id === jogo.clube_casa_id);
+              const jogadoresFora = todosJogadores.filter((jogador) => jogador.clube_id === jogo.clube_fora_id);
+              const clubeCasa = clubesPorId.get(jogo.clube_casa_id);
+              const clubeFora = clubesPorId.get(jogo.clube_fora_id);
               
               return (
                 <div className="space-y-6">
@@ -732,7 +796,7 @@ export function Admin() {
               </thead>
               <tbody>
                 {todosJogadores.map(jog => {
-                  const clube = db.clubes.buscarPorId(jog.clube_id);
+                  const clube = clubesPorId.get(jog.clube_id);
                   return (
                     <tr key={jog.id} className="border-b border-gray-800/50 hover:bg-gray-800/50 transition-colors">
                       <td className="py-4 px-4 font-bold text-sm">{jog.numero}</td>

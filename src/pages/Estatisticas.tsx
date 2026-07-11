@@ -1,67 +1,113 @@
+import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/db';
 import { BarChart3, TrendingUp, Shield, Users } from 'lucide-react';
+import type { ArtilheiroRanking, AssistenteRanking, Clube, TabelaLinha } from '../types';
+
+interface RankingCartao {
+  jogador_id: string;
+  jogador_nome: string;
+  clube_nome: string;
+  clube_id: string;
+  total: number;
+}
 
 export function Estatisticas() {
-  const tabela = db.views.tabela();
+  const [tabela, setTabela] = useState<TabelaLinha[]>([]);
+  const [artilharia, setArtilharia] = useState<ArtilheiroRanking[]>([]);
+  const [assistencias, setAssistencias] = useState<AssistenteRanking[]>([]);
+  const [cartoesAmarelos, setCartoesAmarelos] = useState<RankingCartao[]>([]);
+  const [cartoesVermelhos, setCartoesVermelhos] = useState<RankingCartao[]>([]);
+  const [clubes, setClubes] = useState<Clube[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    let ativo = true;
+
+    const carregar = async () => {
+      try {
+        const [tabelaData, artilhariaData, assistenciasData, estatisticasData, jogadoresData, clubesData] = await Promise.all([
+          db.views.tabela(),
+          db.views.artilharia(),
+          db.views.assistencias(),
+          db.estatisticas.listar(),
+          db.jogadores.listar(),
+          db.clubes.listar(),
+        ]);
+        if (!ativo) return;
+
+        const jogadoresPorId = new Map(jogadoresData.map((jogador) => [jogador.id, jogador]));
+        const clubesPorId = new Map(clubesData.map((clube) => [clube.id, clube]));
+        const amarelos = new Map<string, RankingCartao>();
+        const vermelhos = new Map<string, RankingCartao>();
+
+        for (const stat of estatisticasData) {
+          const jogador = jogadoresPorId.get(stat.jogador_id);
+          if (!jogador) continue;
+          const clube = clubesPorId.get(jogador.clube_id);
+
+          const acumular = (mapa: Map<string, RankingCartao>, total: number) => {
+            if (total <= 0) return;
+            const atual = mapa.get(jogador.id);
+            if (atual) atual.total += total;
+            else mapa.set(jogador.id, {
+              jogador_id: jogador.id,
+              jogador_nome: jogador.nome,
+              clube_nome: clube?.nome || 'Sem clube',
+              clube_id: jogador.clube_id,
+              total,
+            });
+          };
+
+          acumular(amarelos, stat.cartoes_amarelos);
+          acumular(vermelhos, stat.cartoes_vermelhos);
+        }
+
+        setTabela(tabelaData);
+        setArtilharia(artilhariaData.slice(0, 10));
+        setAssistencias(assistenciasData.slice(0, 10));
+        setCartoesAmarelos([...amarelos.values()].sort((a, b) => b.total - a.total).slice(0, 10));
+        setCartoesVermelhos([...vermelhos.values()].sort((a, b) => b.total - a.total).slice(0, 10));
+        setClubes(clubesData);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar as estatísticas.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
+    };
+
+    carregar();
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  const coresClubes = useMemo(
+    () => new Map(clubes.map((clube) => [clube.id, clube.cor_principal])),
+    [clubes],
+  );
   const totalGols = tabela.reduce((acc, t) => acc + t.gols_pro, 0);
-  const mediaGols = tabela.length > 0 ? (totalGols / tabela.reduce((acc, t) => acc + t.jogos, 0)).toFixed(1) : '0';
+  const totalJogosSomados = tabela.reduce((acc, t) => acc + t.jogos, 0);
+  // Cada partida aparece para os dois clubes na tabela.
+  const mediaGols = totalJogosSomados > 0 ? (totalGols / (totalJogosSomados / 2)).toFixed(1) : '0';
   const melhorAtaque = [...tabela].sort((a, b) => b.gols_pro - a.gols_pro)[0];
   const melhorDefesa = [...tabela].sort((a, b) => a.gols_contra - b.gols_contra)[0];
   const maisVitorias = [...tabela].sort((a, b) => b.vitorias - a.vitorias)[0];
 
-  // Artilharia
-  const artilharia = db.views.artilharia().slice(0, 10);
-  
-  // Assistências
-  const assistencias = db.views.assistencias().slice(0, 10);
-  
-  // Cartões Amarelos
-  const cartoesAmarelosMap = new Map<string, {jogador_id: string, jogador_nome: string, clube_nome: string, clube_id: string, total: number}>();
-  db.estatisticas.listar().forEach(stat => {
-    const jogador = db.jogadores.buscarPorId(stat.jogador_id);
-    if (jogador && stat.cartoes_amarelos > 0) {
-      const clube = db.clubes.buscarPorId(jogador.clube_id);
-      const existing = cartoesAmarelosMap.get(stat.jogador_id);
-      if (existing) {
-        existing.total += stat.cartoes_amarelos;
-      } else {
-        cartoesAmarelosMap.set(stat.jogador_id, {
-          jogador_id: stat.jogador_id,
-          jogador_nome: jogador.nome,
-          clube_nome: clube?.nome || 'Sem clube',
-          clube_id: jogador.clube_id,
-          total: stat.cartoes_amarelos
-        });
-      }
-    }
-  });
-  const cartoesAmarelos = Array.from(cartoesAmarelosMap.values()).sort((a, b) => b.total - a.total).slice(0, 10);
-  
-  // Cartões Vermelhos
-  const cartoesVermelhosMap = new Map<string, {jogador_id: string, jogador_nome: string, clube_nome: string, clube_id: string, total: number}>();
-  db.estatisticas.listar().forEach(stat => {
-    const jogador = db.jogadores.buscarPorId(stat.jogador_id);
-    if (jogador && stat.cartoes_vermelhos > 0) {
-      const clube = db.clubes.buscarPorId(jogador.clube_id);
-      const existing = cartoesVermelhosMap.get(stat.jogador_id);
-      if (existing) {
-        existing.total += stat.cartoes_vermelhos;
-      } else {
-        cartoesVermelhosMap.set(stat.jogador_id, {
-          jogador_id: stat.jogador_id,
-          jogador_nome: jogador.nome,
-          clube_nome: clube?.nome || 'Sem clube',
-          clube_id: jogador.clube_id,
-          total: stat.cartoes_vermelhos
-        });
-      }
-    }
-  });
-  const cartoesVermelhos = Array.from(cartoesVermelhosMap.values()).sort((a, b) => b.total - a.total).slice(0, 10);
+  if (loading) {
+    return <div className="text-center py-12 text-yellow-500">Carregando estatísticas...</div>;
+  }
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Estatísticas</h1>
+
+      {erro && (
+        <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {erro}
+        </div>
+      )}
 
       {/* Cards de Estatísticas Gerais */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -196,7 +242,7 @@ export function Estatisticas() {
                       <div className="flex items-center gap-2">
                         <div
                           className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                          style={{ backgroundColor: db.clubes.buscarPorId(artilheiro.clube_id)?.cor_principal || '#666' }}
+                          style={{ backgroundColor: coresClubes.get(artilheiro.clube_id) || '#666' }}
                         >
                           {artilheiro.clube_nome.charAt(0)}
                         </div>
@@ -238,7 +284,7 @@ export function Estatisticas() {
                       <div className="flex items-center gap-2">
                         <div
                           className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                          style={{ backgroundColor: db.clubes.buscarPorId(assistente.clube_id)?.cor_principal || '#666' }}
+                          style={{ backgroundColor: coresClubes.get(assistente.clube_id) || '#666' }}
                         >
                           {assistente.clube_nome.charAt(0)}
                         </div>
@@ -280,7 +326,7 @@ export function Estatisticas() {
                       <div className="flex items-center gap-2">
                         <div
                           className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                          style={{ backgroundColor: db.clubes.buscarPorId(jogador.clube_id)?.cor_principal || '#666' }}
+                          style={{ backgroundColor: coresClubes.get(jogador.clube_id) || '#666' }}
                         >
                           {jogador.clube_nome.charAt(0)}
                         </div>
@@ -322,7 +368,7 @@ export function Estatisticas() {
                       <div className="flex items-center gap-2">
                         <div
                           className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                          style={{ backgroundColor: db.clubes.buscarPorId(jogador.clube_id)?.cor_principal || '#666' }}
+                          style={{ backgroundColor: coresClubes.get(jogador.clube_id) || '#666' }}
                         >
                           {jogador.clube_nome.charAt(0)}
                         </div>

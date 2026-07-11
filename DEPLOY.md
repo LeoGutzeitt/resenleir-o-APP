@@ -2,11 +2,14 @@
 
 ## Configuração do Supabase
 
-### 1. Execute o SQL de setup
-Execute o arquivo `setup-supabase.sql` no Supabase SQL Editor para:
+### 1. Execute o SQL de setup/correção
+Para um projeto novo, execute `setup-supabase.sql`. Em um banco que já possui os usuários, execute também `corrigir-supabase.sql` no Supabase SQL Editor para:
 - Criar tabelas
 - Inserir clubes iniciais
 - Configurar RLS (Row Level Security)
+- Criar os perfis ausentes a partir do Supabase Auth
+- Vincular `usuarios.clube_id` a `clubes.usuario_dono_id`
+- Liberar as operações administrativas para quem possui `role = 'admin'`
 
 ### 2. Criar usuários
 No Supabase Auth, crie os seguintes usuários:
@@ -26,14 +29,7 @@ No Supabase Auth, crie os seguintes usuários:
 | piscina@resenleirao.com | 123456 | dono |
 
 ### 3. Vincular usuários aos clubes
-Execute este SQL após criar os usuários:
-
-```sql
--- Atualizar os clubes com o ID dos donos
-UPDATE clubes SET usuario_dono_id = 'ID_DO_USUARIO_LEO' WHERE id = 1;
-UPDATE clubes SET usuario_dono_id = 'ID_DO_USUARIO_FELIPE' WHERE id = 2;
--- ... repita para todos os clubes
-```
+Execute `corrigir-supabase.sql` após criar os usuários. O script usa os e-mails acima para preencher os dois lados do vínculo automaticamente e pode ser executado novamente com segurança.
 
 ## Deploy no Vercel
 

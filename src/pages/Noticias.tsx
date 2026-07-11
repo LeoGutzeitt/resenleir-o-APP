@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Newspaper, Plus, Star, Calendar, User, X } from 'lucide-react';
+import { Newspaper, Plus, Star, Calendar } from 'lucide-react';
 import type { Noticia, Clube } from '../types';
 
 export function Noticias() {
