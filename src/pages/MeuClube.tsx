@@ -16,35 +16,46 @@ export function MeuClube() {
   const [tabela, setTabela] = useState<TabelaLinha[]>([]);
   const [artilharia, setArtilharia] = useState<ArtilheiroRanking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const fetchData = async () => {
-      if (!user) return;
-      
-      const clube = await db.clubes.buscarPorDono(user.id);
-      if (!clube) {
-        setMeusClube(null);
-        setLoading(false);
-        return;
+      setLoading(true);
+      setErro('');
+      try {
+        if (!user) {
+          setMeusClube(null);
+          return;
+        }
+        const clube = await db.clubes.buscarPorDono(user.id, user.clube_id);
+        if (!clube) {
+          if (ativo) setMeusClube(null);
+          return;
+        }
+        const [jogadoresData, clubesData, jogosData, tabelaData, artilhariaData] = await Promise.all([
+          db.jogadores.listar(clube.id),
+          db.clubes.listar(),
+          db.jogos.buscarPorClube(clube.id),
+          db.views.tabela(),
+          db.views.artilharia()
+        ]);
+        if (!ativo) return;
+        setMeusClube(clube);
+        setJogadores(jogadoresData);
+        setClubes(clubesData);
+        setJogos(jogosData);
+        setTabela(tabelaData);
+        setArtilharia(artilhariaData.filter((a) => a.clube_id === clube.id));
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar o clube associado ao seu perfil.');
+      } finally {
+        if (ativo) setLoading(false);
       }
-      
-      const [jogadoresData, clubesData, jogosData, tabelaData, artilhariaData] = await Promise.all([
-        db.jogadores.listar(clube.id),
-        db.clubes.listar(),
-        db.jogos.buscarPorClube(clube.id),
-        db.views.tabela(),
-        db.views.artilharia()
-      ]);
-      
-      setMeusClube(clube);
-      setJogadores(jogadoresData);
-      setClubes(clubesData);
-      setJogos(jogosData);
-      setTabela(tabelaData);
-      setArtilharia(artilhariaData.filter((a) => a.clube_id === clube.id));
-      setLoading(false);
     };
-    fetchData();
+    void fetchData();
+    return () => { ativo = false; };
   }, [user]);
 
   const minhaPosicao = tabela.find((t) => t.clube_id === meusClube?.id);
@@ -70,6 +81,10 @@ export function MeuClube() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   if (!meusClube) {

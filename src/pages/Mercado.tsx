@@ -3,6 +3,7 @@ import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { Store, Send, Search, DollarSign } from 'lucide-react';
 import type { Clube, Jogador } from '../types';
+import { idsIguais } from '../lib/ids';
 
 export function Mercado() {
   const { user, isDono } = useAuth();
@@ -21,29 +22,41 @@ export function Mercado() {
   const [jogadorSelecionado, setJogadorSelecionado] = useState<Jogador | null>(null);
   const [clubeJogador, setClubeJogador] = useState<Clube | null>(null);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const fetchData = async () => {
-      const [clubesData, jogadoresData, meuClubeData] = await Promise.all([
-        db.clubes.listar(),
-        db.jogadores.listar(),
-        user && isDono ? db.clubes.buscarPorDono(user.id) : Promise.resolve(null)
-      ]);
-      setClubes(clubesData);
-      setTodosJogadores(jogadoresData);
-      setMeusClube(meuClubeData || null);
-      setLoading(false);
+      setLoading(true);
+      setErro('');
+      try {
+        const [clubesData, jogadoresData, meuClubeData] = await Promise.all([
+          db.clubes.listar(),
+          db.jogadores.listar(),
+          user && isDono ? db.clubes.buscarPorDono(user.id, user.clube_id) : Promise.resolve(null)
+        ]);
+        if (!ativo) return;
+        setClubes(clubesData);
+        setTodosJogadores(jogadoresData);
+        setMeusClube(meuClubeData || null);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar o mercado.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
     };
-    fetchData();
+    void fetchData();
+    return () => { ativo = false; };
   }, [user, isDono]);
 
   const posicoes = ['', 'Goleiro', 'Zagueiro', 'Lateral', 'Meio-Campo', 'Atacante'];
 
   const jogadoresFiltrados = todosJogadores.filter(j => {
-    if (j.clube_id === meusClube?.id) return false;
+    if (idsIguais(j.clube_id, meusClube?.id)) return false;
     if (searchTerm && !j.nome.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (filtroPosicao && j.posicao !== filtroPosicao) return false;
-    if (filtroClube && j.clube_id !== filtroClube) return false;
+    if (filtroClube && !idsIguais(j.clube_id, filtroClube)) return false;
     return true;
   });
 
@@ -99,6 +112,10 @@ export function Mercado() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   return (

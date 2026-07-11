@@ -36,7 +36,7 @@ export function Draft() {
       try {
         const [clubesData, clubeDoUsuario] = await Promise.all([
           db.clubes.listar(),
-          user && isDono ? db.clubes.buscarPorDono(user.id) : Promise.resolve(undefined),
+          user && isDono ? db.clubes.buscarPorDono(user.id, user.clube_id) : Promise.resolve(undefined),
         ]);
         if (!ativo) return;
         setClubes(clubesData);

@@ -9,20 +9,30 @@ export function Artilharia() {
   const [assistencias, setAssistencias] = useState<AssistenteRanking[]>([]);
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const fetchData = async () => {
-      const [artilhariaData, assistenciasData, jogadoresData] = await Promise.all([
-        db.views.artilharia(),
-        db.views.assistencias(),
-        db.jogadores.listar()
-      ]);
-      setArtilharia(artilhariaData);
-      setAssistencias(assistenciasData);
-      setJogadores(jogadoresData);
-      setLoading(false);
+      try {
+        const [artilhariaData, assistenciasData, jogadoresData] = await Promise.all([
+          db.views.artilharia(),
+          db.views.assistencias(),
+          db.jogadores.listar()
+        ]);
+        if (!ativo) return;
+        setArtilharia(artilhariaData);
+        setAssistencias(assistenciasData);
+        setJogadores(jogadoresData);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar a artilharia.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
     };
-    fetchData();
+    void fetchData();
+    return () => { ativo = false; };
   }, []);
 
   const getFotoJogador = (jogadorId: string) => {
@@ -39,6 +49,10 @@ export function Artilharia() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   return (

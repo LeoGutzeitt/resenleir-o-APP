@@ -8,10 +8,11 @@ export function Login() {
   const [senha, setSenha] = useState('');
   const [showSenha, setShowSenha] = useState(false);
   const [erro, setErro] = useState('');
+  const [enviando, setEnviando] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro('');
 
@@ -20,11 +21,19 @@ const handleSubmit = async (e: React.FormEvent) => {
       return;
     }
 
-    const success = await login(email, senha);
-    if (success) {
-      navigate('/');
-    } else {
-      setErro('Email ou senha inválidos');
+    setEnviando(true);
+    try {
+      const success = await login(email, senha);
+      if (success) {
+        navigate('/');
+      } else {
+        setErro('Email ou senha inválidos');
+      }
+    } catch (error) {
+      console.error(error);
+      setErro('Não foi possível concluir o login. Tente novamente.');
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -77,9 +86,10 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           <button
             type="submit"
-            className="w-full py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors"
+            disabled={enviando}
+            className="w-full py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors disabled:opacity-60"
           >
-            Entrar
+            {enviando ? 'Entrando...' : 'Entrar'}
           </button>
 
           <div className="text-center text-sm text-gray-500">

@@ -10,24 +10,33 @@ export function Home() {
   const [jogosRecentes, setJogosRecentes] = useState<Jogo[]>([]);
   const [clubes, setClubes] = useState<Clube[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const fetchData = async () => {
-      const [tabelaData, artilhariaData, jogosData, clubesData] = await Promise.all([
-        db.views.tabela(),
-        db.views.artilharia(),
-        db.jogos.listar(),
-        db.clubes.listar(),
-      ]);
-      
-      setTabela(tabelaData);
-      setArtilharia(artilhariaData);
-      setJogosRecentes(jogosData.filter(j => j.status === 'realizado').slice(0, 3));
-      setClubes(clubesData);
-      setLoading(false);
+      try {
+        const [tabelaData, artilhariaData, jogosData, clubesData] = await Promise.all([
+          db.views.tabela(),
+          db.views.artilharia(),
+          db.jogos.listar(),
+          db.clubes.listar(),
+        ]);
+        if (!ativo) return;
+        setTabela(tabelaData);
+        setArtilharia(artilhariaData);
+        setJogosRecentes(jogosData.filter(j => j.status === 'realizado').slice(0, 3));
+        setClubes(clubesData);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar os dados do campeonato.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
     };
 
-    fetchData();
+    void fetchData();
+    return () => { ativo = false; };
   }, []);
 
   const lider = tabela[0];
@@ -39,6 +48,10 @@ export function Home() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   return (
