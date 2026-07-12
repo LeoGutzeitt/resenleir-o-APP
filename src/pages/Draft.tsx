@@ -2,18 +2,11 @@ import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { Dices, RefreshCw, DollarSign } from 'lucide-react';
-import type { Clube } from '../types';
-
-interface ContratacaoDraft {
-  jogador_id: string;
-  jogador_nome: string;
-  clube_id: string;
-  valor: number;
-  rodada: number;
-}
+import type { Clube, ContratacaoDraft } from '../types';
+import { idsIguais } from '../lib/ids';
 
 export function Draft() {
-  const { user, isDono } = useAuth();
+  const { user, isDono, isAdmin } = useAuth();
   const [draftIniciado, setDraftIniciado] = useState(false);
   const [ordemDraft, setOrdemDraft] = useState<string[]>([]);
   const [posicaoAtual, setPosicaoAtual] = useState(0);
@@ -26,6 +19,7 @@ export function Draft() {
   const [meusClube, setMeusClube] = useState<Clube | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
+  const [processando, setProcessando] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -34,13 +28,19 @@ export function Draft() {
       setLoading(true);
       setErro('');
       try {
-        const [clubesData, clubeDoUsuario] = await Promise.all([
+        const [clubesData, clubeDoUsuario, estadoDraft, contratacoesDraft] = await Promise.all([
           db.clubes.listar(),
           user && isDono ? db.clubes.buscarPorDono(user.id, user.clube_id) : Promise.resolve(undefined),
+          db.draft.buscarEstado(),
+          db.draft.listarContratacoes(),
         ]);
         if (!ativo) return;
         setClubes(clubesData);
         setMeusClube(clubeDoUsuario || null);
+        setDraftIniciado(estadoDraft.iniciado);
+        setOrdemDraft(estadoDraft.ordem_clubes);
+        setPosicaoAtual(estadoDraft.posicao_atual);
+        setContratacoes(contratacoesDraft);
       } catch (error) {
         console.error(error);
         if (ativo) setErro('Não foi possível carregar os dados do draft.');
@@ -49,14 +49,26 @@ export function Draft() {
       }
     };
 
-    carregar();
+    void carregar();
+    const intervalo = window.setInterval(() => {
+      void Promise.all([db.draft.buscarEstado(), db.draft.listarContratacoes()])
+        .then(([estadoDraft, contratacoesDraft]) => {
+          if (!ativo) return;
+          setDraftIniciado(estadoDraft.iniciado);
+          setOrdemDraft(estadoDraft.ordem_clubes);
+          setPosicaoAtual(estadoDraft.posicao_atual);
+          setContratacoes(contratacoesDraft);
+        })
+        .catch((error) => console.error('Não foi possível sincronizar o draft:', error));
+    }, 2500);
     return () => {
       ativo = false;
+      window.clearInterval(intervalo);
     };
   }, [user, isDono]);
 
   // Inicializar sorteio
-  const iniciarDraft = () => {
+  const iniciarDraft = async () => {
     if (clubes.length === 0) {
       setErro('Nenhum clube disponível para iniciar o draft.');
       return;
@@ -68,37 +80,56 @@ export function Draft() {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-    setOrdemDraft(shuffled);
-    setPosicaoAtual(0);
-    setDraftIniciado(true);
-    setContratacoes([]);
+    setProcessando(true);
+    setErro('');
+    try {
+      await db.draft.iniciar(shuffled);
+      setOrdemDraft(shuffled);
+      setPosicaoAtual(0);
+      setDraftIniciado(true);
+      setContratacoes([]);
+    } catch (error) {
+      console.error(error);
+      setErro(error instanceof Error ? error.message : 'Não foi possível iniciar o draft.');
+    } finally {
+      setProcessando(false);
+    }
   };
 
   // Re-sortear (mantém as contratações)
-  const reSortear = () => {
+  const reSortear = async () => {
     const idsClubes = clubes.map(c => c.id);
     const shuffled = [...idsClubes];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-    setOrdemDraft(shuffled);
-    setPosicaoAtual(0);
+    setProcessando(true);
+    try {
+      await db.draft.iniciar(shuffled);
+      setOrdemDraft(shuffled);
+      setPosicaoAtual(0);
+    } catch (error) {
+      console.error(error);
+      setErro(error instanceof Error ? error.message : 'Não foi possível reordenar o draft.');
+    } finally {
+      setProcessando(false);
+    }
   };
 
   // Time atual no draft
   const timeAtualId = ordemDraft[posicaoAtual];
-  const timeAtual = clubes.find(c => c.id === timeAtualId);
+  const timeAtual = clubes.find(c => idsIguais(c.id, timeAtualId));
 
   // Calcular orçamento restante do time atual
-  const orcamentoInicial = 100000000; // R$ 100M
+  const orcamentoInicial = timeAtual?.orcamento || 0;
   const gastoTimeAtual = contratacoes
-    .filter(c => c.clube_id === timeAtualId)
+    .filter(c => idsIguais(c.clube_id, timeAtualId))
     .reduce((sum, c) => sum + c.valor, 0);
   const orcamentoRestante = timeAtual ? orcamentoInicial - gastoTimeAtual : 0;
 
   // Verificar se é a vez do usuário
-  const isMinhaVez = meusClube && timeAtualId === meusClube.id;
+  const isMinhaVez = Boolean(meusClube && idsIguais(timeAtualId, meusClube.id));
 
   // Abrir formulário para criar jogador
   const handleAbrirFormulario = () => {
@@ -116,59 +147,35 @@ export function Draft() {
       return;
     }
 
-    // Criar novo jogador no banco de dados
-    let novoJogador;
+    setProcessando(true);
+    setErro('');
     try {
-      novoJogador = await db.jogadores.criar({
+      await db.draft.contratar({
         nome: nomeJogador,
         posicao: posicaoJogador,
-        valor_mercado: valor,
-        clube_id: timeAtual.id,
-        numero: Math.floor(Math.random() * 99) + 1,
-        foto_url: null,
-        status: 'ativo',
-        jogos_suspensao: 0,
+        valor,
       });
+      const [estadoDraft, contratacoesDraft] = await Promise.all([
+        db.draft.buscarEstado(),
+        db.draft.listarContratacoes(),
+      ]);
+      setDraftIniciado(estadoDraft.iniciado);
+      setOrdemDraft(estadoDraft.ordem_clubes);
+      setPosicaoAtual(estadoDraft.posicao_atual);
+      setContratacoes(contratacoesDraft);
     } catch (error) {
       console.error(error);
-      setErro('Não foi possível concluir a contratação. Verifique sua permissão no clube.');
+      setErro(error instanceof Error ? error.message : 'Não foi possível concluir a contratação.');
       return;
+    } finally {
+      setProcessando(false);
     }
-
-    if (!novoJogador) {
-      setErro('O Supabase não retornou o jogador criado. Verifique as políticas de acesso.');
-      return;
-    }
-
-    // Salvar contratação
-    const novaContratacao = {
-      jogador_id: novoJogador.id,
-      jogador_nome: novoJogador.nome,
-      clube_id: timeAtual.id,
-      valor: valor,
-      rodada: posicaoAtual + 1,
-    };
-
-    setContratacoes([...contratacoes, novaContratacao]);
 
     // Resetar e avançar
     setNomeJogador('');
     setPosicaoJogador('');
     setValorJogador('');
     setShowForm(false);
-    avancarDraft();
-  };
-
-  // Avançar para próxima posição (ordem snake)
-  const avancarDraft = () => {
-    const novaPosicao = posicaoAtual + 1;
-    if (novaPosicao >= ordemDraft.length) {
-      // Draft finalizado
-      alert('Draft finalizado! Todos os times fizeram suas escolhas.');
-      setDraftIniciado(false);
-    } else {
-      setPosicaoAtual(novaPosicao);
-    }
   };
 
   const formatValor = (v: number) => {
@@ -195,9 +202,10 @@ export function Draft() {
             Sistema de draft para contratação de jogadores
           </p>
         </div>
-        {!draftIniciado && (
+        {!draftIniciado && isAdmin && (
           <button
-            onClick={iniciarDraft}
+            onClick={() => void iniciarDraft()}
+            disabled={processando}
             className="flex items-center gap-2 px-6 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors"
           >
             <Dices className="w-5 h-5" />
@@ -220,19 +228,20 @@ export function Draft() {
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Ordem de Escolha</h2>
-              <button
-                onClick={reSortear}
+              {isAdmin && contratacoes.length === 0 && <button
+                onClick={() => void reSortear()}
+                disabled={processando}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
                 Re-sortear
-              </button>
+              </button>}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {ordemDraft.map((clubeId, index) => {
-                const clube = clubes.find(c => c.id === clubeId);
+                const clube = clubes.find(c => idsIguais(c.id, clubeId));
                 const isCurrentPick = index === posicaoAtual;
-                const isMyTeam = meusClube && clubeId === meusClube.id;
+                const isMyTeam = meusClube && idsIguais(clubeId, meusClube.id);
                 
                 return (
                   <div
@@ -369,7 +378,7 @@ export function Draft() {
                     <div className="flex gap-3">
                       <button
                         onClick={confirmarContratacao}
-                        disabled={!nomeJogador || !posicaoJogador || !valorJogador || parseInt(valorJogador) > orcamentoRestante}
+                        disabled={processando || !nomeJogador || !posicaoJogador || !valorJogador || parseInt(valorJogador) > orcamentoRestante}
                         className="flex-1 py-3 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400 transition-colors disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed"
                       >
                         Concluir Contratação
@@ -398,7 +407,7 @@ export function Draft() {
               <h2 className="text-lg font-semibold mb-4">Contratações do Draft</h2>
               <div className="space-y-2">
                 {contratacoes.map((contratacao, index) => {
-                  const clube = clubes.find(c => c.id === contratacao.clube_id);
+                  const clube = clubes.find(c => idsIguais(c.id, contratacao.clube_id));
                   return (
                     <div
                       key={index}

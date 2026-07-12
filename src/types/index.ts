@@ -65,6 +65,24 @@ export interface Transferencia {
   mensagem: string;
 }
 
+export interface DraftEstado {
+  id: number;
+  iniciado: boolean;
+  ordem_clubes: string[];
+  posicao_atual: number;
+  atualizado_em: string;
+}
+
+export interface ContratacaoDraft {
+  id: string;
+  jogador_id: string;
+  jogador_nome: string;
+  clube_id: string;
+  valor: number;
+  rodada: number;
+  criado_em: string;
+}
+
 export interface TabelaLinha {
   clube_id: string;
   clube_nome: string;
