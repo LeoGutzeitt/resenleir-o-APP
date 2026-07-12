@@ -9,6 +9,8 @@ import type {
   Jogo,
   EstatisticaJogador,
   Transferencia,
+  DraftEstado,
+  ContratacaoDraft,
   TabelaLinha,
   ArtilheiroRanking,
   AssistenteRanking,
@@ -237,6 +239,11 @@ export const db = {
       verificarErro(error, 'Erro ao remover jogo');
       return !error;
     },
+    gerarTabela: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc('admin_gerar_jogos');
+      verificarErro(error, 'Erro ao gerar jogos');
+      return Number(data || 0);
+    },
   },
 
   // Estatísticas
@@ -271,69 +278,82 @@ export const db = {
   // Transferências
   transferencias: {
     listar: async (): Promise<Transferencia[]> => {
-      const { data } = await supabase.from('transferencias').select('*');
+      const { data, error } = await supabase.from('transferencias').select('*').order('data', { ascending: false });
+      verificarErro(error, 'Erro ao listar transferências');
       return data || [];
     },
     listarPorClube: async (clubeId: string): Promise<Transferencia[]> => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('transferencias')
         .select('*')
         .or(`clube_origem_id.eq.${clubeId},clube_destino_id.eq.${clubeId}`);
+      verificarErro(error, 'Erro ao listar transferências do clube');
       return data || [];
     },
     listarRecebidas: async (clubeId: string): Promise<Transferencia[]> => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('transferencias')
         .select('*')
         .eq('clube_destino_id', clubeId)
         .eq('status', 'pendente');
+      verificarErro(error, 'Erro ao listar propostas recebidas');
       return data || [];
     },
     criar: async (
       t: Omit<Transferencia, "id">,
-    ): Promise<{ ok: false; erro: string } | { ok: true; data: Transferencia }> => {
-      const { data: clubeDestino } = await supabase.from('clubes').select('orcamento').eq('id', t.clube_destino_id).single();
-      
-      if (t.valor > 0 && (!clubeDestino || clubeDestino.orcamento < t.valor)) {
-        return { ok: false, erro: `Orçamento insuficiente` };
-      }
-
-      const { data } = await supabase.from('transferencias').insert(t).select().single();
-      return { ok: true, data };
+    ): Promise<{ ok: false; erro: string } | { ok: true }> => {
+      const { error } = await supabase.rpc('criar_proposta_transferencia', {
+        p_jogador_id: t.jogador_id,
+        p_clube_destino_id: t.clube_destino_id,
+        p_valor: t.valor,
+        p_tipo: t.tipo,
+        p_jogador_troca_id: t.jogador_troca_id,
+        p_mensagem: t.mensagem,
+      });
+      if (error) return { ok: false, erro: error.message };
+      return { ok: true };
     },
     aceitar: async (id: string): Promise<Transferencia | null> => {
-      // Implementar lógica de aceitação
-      const { data: t } = await supabase.from('transferencias').select('*').eq('id', id).single();
-      if (!t) return null;
-
-      // Atualizar jogador
-      if (t.jogador_troca_id) {
-        await supabase.from('jogadores').update({ clube_id: t.clube_origem_id }).eq('id', t.jogador_troca_id);
-      }
-      await supabase.from('jogadores').update({ clube_id: t.clube_destino_id }).eq('id', t.jogador_id);
-
-      // Atualizar orçamento
-      if (t.valor > 0) {
-        await supabase.rpc('increment_orcamento', { clube_id: t.clube_origem_id, valor: t.valor });
-        await supabase.rpc('decrement_orcamento', { clube_id: t.clube_destino_id, valor: t.valor });
-      }
-
-      const { data } = await supabase
-        .from('transferencias')
-        .update({ status: 'aceita' })
-        .eq('id', id)
-        .select()
-        .single();
+      const { error } = await supabase.rpc('aceitar_proposta_transferencia', { p_transferencia_id: id });
+      verificarErro(error, 'Erro ao aceitar proposta');
+      const { data, error: erroBusca } = await supabase.from('transferencias').select('*').eq('id', id).single();
+      verificarErro(erroBusca, 'Erro ao recarregar proposta');
       return data;
     },
     rejeitar: async (id: string): Promise<Transferencia | null> => {
-      const { data } = await supabase
-        .from('transferencias')
-        .update({ status: 'rejeitada' })
-        .eq('id', id)
-        .select()
-        .single();
+      const { error } = await supabase.rpc('rejeitar_proposta_transferencia', { p_transferencia_id: id });
+      verificarErro(error, 'Erro ao rejeitar proposta');
+      const { data, error: erroBusca } = await supabase.from('transferencias').select('*').eq('id', id).single();
+      verificarErro(erroBusca, 'Erro ao recarregar proposta');
       return data;
+    },
+  },
+
+  draft: {
+    buscarEstado: async (): Promise<DraftEstado> => {
+      const { data, error } = await supabase.from('draft_estado').select('*').eq('id', 1).single();
+      verificarErro(error, 'Erro ao carregar estado do draft');
+      return {
+        ...data,
+        ordem_clubes: (data.ordem_clubes || []).map(String),
+      } as DraftEstado;
+    },
+    listarContratacoes: async (): Promise<ContratacaoDraft[]> => {
+      const { data, error } = await supabase.from('draft_contratacoes').select('*').order('rodada');
+      verificarErro(error, 'Erro ao listar contratações do draft');
+      return data || [];
+    },
+    iniciar: async (ordemClubes: string[]): Promise<void> => {
+      const { error } = await supabase.rpc('admin_iniciar_draft', { p_ordem_clubes: ordemClubes });
+      verificarErro(error, 'Erro ao iniciar draft');
+    },
+    contratar: async (dados: { nome: string; posicao: Jogador['posicao']; valor: number }): Promise<void> => {
+      const { error } = await supabase.rpc('draft_contratar_jogador', {
+        p_nome: dados.nome,
+        p_posicao: dados.posicao,
+        p_valor: dados.valor,
+      });
+      verificarErro(error, 'Erro ao contratar jogador no draft');
     },
   },
 

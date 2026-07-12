@@ -44,7 +44,16 @@ export function Elenco() {
       }
     };
     void fetchData();
-    return () => { ativo = false; };
+    const intervalo = window.setInterval(() => {
+      if (!clubeId) return;
+      void db.jogadores.listar(clubeId)
+        .then((dados) => { if (ativo) setJogadores(dados); })
+        .catch((error) => console.error('Não foi possível sincronizar o elenco:', error));
+    }, 3000);
+    return () => {
+      ativo = false;
+      window.clearInterval(intervalo);
+    };
   }, [clubeId, user, isDono]);
 
   const podeEditar = isAdmin || (isDono && idsIguais(meusClube?.id, clubeId));

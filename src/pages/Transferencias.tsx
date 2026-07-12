@@ -3,6 +3,7 @@ import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import type { Transferencia, Clube, Jogador } from '../types';
 import { ArrowLeftRight, Check, X, ShoppingCart, Send } from 'lucide-react';
+import { idsIguais } from '../lib/ids';
 
 interface TransferenciaComDados extends Transferencia {
   jogador?: Jogador;
@@ -21,9 +22,9 @@ export function Transferencias() {
 
   useEffect(() => {
     let ativo = true;
-    const fetchData = async () => {
-      setLoading(true);
-      setErro('');
+    const fetchData = async (mostrarLoading = true) => {
+      if (mostrarLoading) setLoading(true);
+      if (mostrarLoading) setErro('');
       try {
         const [meuClubeData, transferenciasData] = await Promise.all([
           user && isDono ? db.clubes.buscarPorDono(user.id, user.clube_id) : Promise.resolve(null),
@@ -45,23 +46,27 @@ export function Transferencias() {
         setTransferenciasComDados(dados);
       } catch (error) {
         console.error(error);
-        if (ativo) setErro('Não foi possível carregar as transferências.');
+        if (ativo && mostrarLoading) setErro('Não foi possível carregar as transferências.');
       } finally {
-        if (ativo) setLoading(false);
+        if (ativo && mostrarLoading) setLoading(false);
       }
     };
     void fetchData();
-    return () => { ativo = false; };
+    const intervalo = window.setInterval(() => void fetchData(false), 3000);
+    return () => {
+      ativo = false;
+      window.clearInterval(intervalo);
+    };
   }, [user, isDono]);
 
   // Propostas de COMPRA recebidas (outros clubes querem comprar MEUS jogadores)
   const recebidas = meusClube
-    ? transferenciasComDados.filter(t => t.clube_origem_id === meusClube.id && t.status === 'pendente')
+    ? transferenciasComDados.filter(t => idsIguais(t.clube_origem_id, meusClube.id) && t.status === 'pendente')
     : [];
   
   // Propostas de COMPRA enviadas (EU quero comprar jogadores de outros clubes)
   const enviadas = meusClube
-    ? transferenciasComDados.filter(t => t.clube_destino_id === meusClube.id && t.status === 'pendente')
+    ? transferenciasComDados.filter(t => idsIguais(t.clube_destino_id, meusClube.id) && t.status === 'pendente')
     : [];
 
   const formatValor = (v: number) => {
@@ -71,9 +76,12 @@ export function Transferencias() {
   };
 
   const handleAceitar = async (id: string) => {
-    const result = await db.transferencias.aceitar(id);
-    if (!result) {
-      alert('Não foi possível aceitar a proposta. Verifique o orçamento.');
+    try {
+      await db.transferencias.aceitar(id);
+    } catch (error) {
+      console.error(error);
+      setErro(error instanceof Error ? error.message : 'Não foi possível aceitar a proposta.');
+      return;
     }
     // Recarregar transferências
     const transferenciasData = await db.transferencias.listar();
@@ -92,7 +100,13 @@ export function Transferencias() {
   };
 
   const handleRejeitar = async (id: string) => {
-    await db.transferencias.rejeitar(id);
+    try {
+      await db.transferencias.rejeitar(id);
+    } catch (error) {
+      console.error(error);
+      setErro(error instanceof Error ? error.message : 'Não foi possível rejeitar a proposta.');
+      return;
+    }
     // Recarregar transferências
     const transferenciasData = await db.transferencias.listar();
     const transferenciasComDados = await Promise.all(
@@ -218,7 +232,7 @@ export function Transferencias() {
 
           {/* Ações */}
           <div className="flex items-center gap-2">
-            {aba === 'recebidas' && t.status === 'pendente' && isDono && meusClube && t.clube_origem_id === meusClube.id && (
+            {aba === 'recebidas' && t.status === 'pendente' && isDono && meusClube && idsIguais(t.clube_origem_id, meusClube.id) && (
               <div className="flex gap-1">
                 <button
                   onClick={() => handleAceitar(t.id)}

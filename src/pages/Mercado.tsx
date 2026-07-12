@@ -47,7 +47,15 @@ export function Mercado() {
       }
     };
     void fetchData();
-    return () => { ativo = false; };
+    const intervalo = window.setInterval(() => {
+      void db.jogadores.listar()
+        .then((dados) => { if (ativo) setTodosJogadores(dados); })
+        .catch((error) => console.error('Não foi possível sincronizar o mercado:', error));
+    }, 3000);
+    return () => {
+      ativo = false;
+      window.clearInterval(intervalo);
+    };
   }, [user, isDono]);
 
   const posicoes = ['', 'Goleiro', 'Zagueiro', 'Lateral', 'Meio-Campo', 'Atacante'];

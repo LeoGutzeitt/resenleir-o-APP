@@ -32,6 +32,7 @@ export function Admin() {
   const [todosJogadores, setTodosJogadores] = useState<Jogador[]>([]);
   const [salvandoClube, setSalvandoClube] = useState(false);
   const [associandoClubeId, setAssociandoClubeId] = useState<string | null>(null);
+  const [gerandoJogos, setGerandoJogos] = useState(false);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
@@ -196,6 +197,22 @@ export function Admin() {
     const jogo = await db.jogos.atualizarResultado(id, golsCasa, golsFora);
     if (jogo) setJogos((atuais) => atuais.map((atual) => atual.id === id ? jogo : atual));
     setEditingJogoId(null);
+  };
+
+  const handleGerarJogos = async () => {
+    setGerandoJogos(true);
+    setErro('');
+    try {
+      const total = await db.jogos.gerarTabela();
+      const jogosAtualizados = await db.jogos.listar();
+      setJogos(jogosAtualizados);
+      if (total === 0) setErro('Nenhum jogo foi gerado. Verifique a quantidade de clubes.');
+    } catch (error) {
+      console.error(error);
+      setErro(error instanceof Error ? error.message : 'Não foi possível gerar os jogos.');
+    } finally {
+      setGerandoJogos(false);
+    }
   };
 
   const handleAbrirEstatisticas = async (jogoId: string) => {
@@ -514,9 +531,21 @@ export function Admin() {
 
       {aba === 'jogos' && (
         <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="p-6 border-b border-gray-800">
-            <h2 className="text-lg font-semibold">Gerenciar Jogos</h2>
-            <p className="text-sm text-gray-400 mt-1">Edite os resultados e estatísticas dos jogos</p>
+          <div className="p-6 border-b border-gray-800 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">Gerenciar Jogos</h2>
+              <p className="text-sm text-gray-400 mt-1">Edite os resultados e estatísticas dos jogos</p>
+            </div>
+            {jogos.length === 0 && (
+              <button
+                onClick={() => void handleGerarJogos()}
+                disabled={gerandoJogos || clubes.length < 2}
+                className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-black rounded-lg font-bold hover:bg-yellow-400 disabled:opacity-60"
+              >
+                <Plus className="w-4 h-4" />
+                {gerandoJogos ? 'Gerando...' : 'Gerar Jogos'}
+              </button>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
