@@ -17,6 +17,66 @@ import type {
 
 // ============== SUPABASE DB FUNCTIONS ==============
 
+// Helper function to get or create user profile
+const getUserProfile = async (authUser: { id: string; email?: string }): Promise<Usuario | null> => {
+  const { data: userData, error: userError } = await supabase
+    .from('usuarios')
+    .select('*')
+    .eq('id', authUser.id)
+    .single();
+
+  if (userData) {
+    return {
+      id: userData.id,
+      email: userData.email,
+      nome: userData.nome,
+      role: userData.role,
+      clube_id: userData.clube_id
+    };
+  }
+
+  // If user doesn't have profile, create one
+  if (userError?.code === 'PGRST116' && authUser.email) {
+    const isAdmin = authUser.email === 'admin@resenleirao.com';
+    const clubeMap: Record<string, number | null> = {
+      'leo@resenleirao.com': 1,
+      'felipe@resenleirao.com': 2,
+      'diego@resenleirao.com': 3,
+      'pedro@resenleirao.com': 4,
+      'berenguer@resenleirao.com': 5,
+      'bruno@resenleirao.com': 6,
+      'yves@resenleirao.com': 7,
+      'adriano@resenleirao.com': 8,
+      'jhonny@resenleirao.com': 9,
+      'piscina@resenleirao.com': 10,
+    };
+
+    const { data: newUserData } = await supabase
+      .from('usuarios')
+      .insert({
+        id: authUser.id,
+        email: authUser.email,
+        nome: authUser.email.split('@')[0],
+        role: isAdmin ? 'admin' : 'dono',
+        clube_id: clubeMap[authUser.email] || null
+      })
+      .select()
+      .single();
+
+    if (newUserData) {
+      return {
+        id: newUserData.id,
+        email: newUserData.email,
+        nome: newUserData.nome,
+        role: newUserData.role,
+        clube_id: newUserData.clube_id
+      };
+    }
+  }
+
+  return null;
+};
+
 export const db = {
   // Auth
   auth: {
@@ -28,44 +88,13 @@ export const db = {
 
       if (error || !data.user) return null;
 
-      // Buscar dados do usuário da tabela usuarios
-      const { data: userData } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-
-      if (userData) {
-        return {
-          id: userData.id,
-          email: userData.email,
-          nome: userData.nome,
-          role: userData.role,
-          clube_id: userData.clube_id
-        };
-      }
-      return null;
+      return getUserProfile(data.user);
     },
     getCurrentUser: async (): Promise<Usuario | null> => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return null;
 
-      const { data: userData } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-
-      if (userData) {
-        return {
-          id: userData.id,
-          email: userData.email,
-          nome: userData.nome,
-          role: userData.role,
-          clube_id: userData.clube_id
-        };
-      }
-      return null;
+      return getUserProfile(session.user);
     },
     setCurrentUser: async (user: Usuario | null) => {
       // Não usado com Supabase Auth - mantido para compatibilidade
@@ -118,7 +147,8 @@ export const db = {
       return data;
     },
     criar: async (jogador: Omit<Jogador, "id">): Promise<Jogador> => {
-      const { data } = await supabase.from('jogadores').insert(jogador).select().single();
+      const { data, error } = await supabase.from('jogadores').insert(jogador).select().single();
+      if (error) throw new Error(error.message);
       return data;
     },
     atualizar: async (id: string, dados: Partial<Jogador>): Promise<Jogador | null> => {
@@ -171,6 +201,11 @@ export const db = {
       const { error } = await supabase.from('jogos').delete().eq('id', id);
       return !error;
     },
+    gerarIdaVolta: async (substituir = false): Promise<number> => {
+      const { data, error } = await supabase.rpc('gerar_calendario_ida_volta', { p_substituir: substituir });
+      if (error) throw new Error(error.message);
+      return data || 0;
+    },
   },
 
   // Estatísticas
@@ -221,48 +256,30 @@ export const db = {
     criar: async (
       t: Omit<Transferencia, "id">,
     ): Promise<{ ok: false; erro: string } | { ok: true; data: Transferencia }> => {
-      const { data: clubeDestino } = await supabase.from('clubes').select('orcamento').eq('id', t.clube_destino_id).single();
-      
-      if (t.valor > 0 && (!clubeDestino || clubeDestino.orcamento < t.valor)) {
-        return { ok: false, erro: `Orçamento insuficiente` };
-      }
-
-      const { data } = await supabase.from('transferencias').insert(t).select().single();
+      const { data, error } = await supabase.rpc('criar_proposta_transferencia', {
+        p_jogador_id: t.jogador_id, p_valor: t.valor, p_tipo: t.tipo,
+        p_jogador_troca_id: t.jogador_troca_id, p_mensagem: t.mensagem || '',
+      });
+      if (error) return { ok: false, erro: error.message };
       return { ok: true, data };
     },
     aceitar: async (id: string): Promise<Transferencia | null> => {
-      // Implementar lógica de aceitação
-      const { data: t } = await supabase.from('transferencias').select('*').eq('id', id).single();
-      if (!t) return null;
-
-      // Atualizar jogador
-      if (t.jogador_troca_id) {
-        await supabase.from('jogadores').update({ clube_id: t.clube_origem_id }).eq('id', t.jogador_troca_id);
-      }
-      await supabase.from('jogadores').update({ clube_id: t.clube_destino_id }).eq('id', t.jogador_id);
-
-      // Atualizar orçamento
-      if (t.valor > 0) {
-        await supabase.rpc('increment_orcamento', { clube_id: t.clube_origem_id, valor: t.valor });
-        await supabase.rpc('decrement_orcamento', { clube_id: t.clube_destino_id, valor: t.valor });
-      }
-
-      const { data } = await supabase
-        .from('transferencias')
-        .update({ status: 'aceita' })
-        .eq('id', id)
-        .select()
-        .single();
+      const { data } = await supabase.rpc('decidir_transferencia', { p_transferencia_id: id, p_aceitar: true });
       return data;
     },
     rejeitar: async (id: string): Promise<Transferencia | null> => {
-      const { data } = await supabase
-        .from('transferencias')
-        .update({ status: 'rejeitada' })
-        .eq('id', id)
-        .select()
-        .single();
+      const { data } = await supabase.rpc('decidir_transferencia', { p_transferencia_id: id, p_aceitar: false });
       return data;
+    },
+  },
+
+  draft: {
+    aberto: async (): Promise<any | null> => (await supabase.from('drafts').select('*').eq('status', 'aberto').order('criado_em', { ascending: false }).limit(1).maybeSingle()).data,
+    iniciar: async (): Promise<any> => { const { data, error } = await supabase.rpc('iniciar_draft'); if (error) throw new Error(error.message); return data; },
+    escolhas: async (draftId: string): Promise<any[]> => (await supabase.from('escolhas_draft').select('*').eq('draft_id', draftId).order('escolha')).data || [],
+    escolher: async (nome: string, posicao: Jogador['posicao'], numero: number, valor: number): Promise<Jogador> => {
+      const { data, error } = await supabase.rpc('escolher_no_draft', { p_nome: nome, p_posicao: posicao, p_numero: numero, p_valor: valor });
+      if (error) throw new Error(error.message); return data;
     },
   },
 

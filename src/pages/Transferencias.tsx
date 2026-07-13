@@ -21,7 +21,7 @@ export function Transferencias() {
   useEffect(() => {
     const fetchData = async () => {
       const [meuClubeData, transferenciasData] = await Promise.all([
-        user && isDono ? db.clubes.buscarPorDono(user.id) : Promise.resolve(null),
+        user && isDono && user.clube_id ? db.clubes.buscarPorId(String(user.clube_id)) : Promise.resolve(null),
         db.transferencias.listar()
       ]);
       

@@ -21,7 +21,7 @@ export function Noticias() {
       const [todasNoticias, destaques, clube] = await Promise.all([
         db.noticias.listar(),
         db.noticias.listarDestaques(),
-        user && isDono ? db.clubes.buscarPorDono(user.id) : Promise.resolve(null)
+        user && isDono && user.clube_id ? db.clubes.buscarPorId(String(user.clube_id)) : Promise.resolve(null)
       ]);
       setNoticias(todasNoticias);
       setNoticiasDestaque(destaques);
