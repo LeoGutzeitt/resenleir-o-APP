@@ -30,6 +30,21 @@ create table if not exists public.draft_contratacoes (
   unique (jogador_id)
 );
 
+-- Bancos criados pela primeira versão podem ter a tabela de transferências
+-- incompleta. Estas colunas são usadas pelas propostas de compra/troca.
+alter table public.transferencias add column if not exists tipo text not null default 'compra';
+alter table public.transferencias add column if not exists jogador_troca_id bigint references public.jogadores(id);
+alter table public.transferencias add column if not exists status text not null default 'pendente';
+alter table public.transferencias add column if not exists mensagem text not null default '';
+alter table public.transferencias add column if not exists data date not null default current_date;
+
+-- Campos necessários para jogadores criados pelo draft e exibidos no mercado.
+alter table public.jogadores add column if not exists numero integer;
+alter table public.jogadores add column if not exists foto_url text;
+alter table public.jogadores add column if not exists status text not null default 'ativo';
+alter table public.jogadores add column if not exists valor_mercado numeric not null default 0;
+alter table public.jogadores add column if not exists jogos_suspensao integer not null default 0;
+
 insert into public.draft_estado (id) values (1)
 on conflict (id) do nothing;
 
@@ -316,7 +331,8 @@ begin
     raise exception 'A ordem do draft deve conter todos os clubes uma única vez';
   end if;
 
-  delete from public.draft_contratacoes;
+  -- A condição explícita também funciona em bancos com proteção contra DELETE sem WHERE.
+  delete from public.draft_contratacoes where id is not null;
   update public.draft_estado
   set iniciado = true,
       ordem_clubes = p_ordem_clubes,
@@ -663,8 +679,8 @@ begin
     raise exception 'Apenas o administrador pode limpar a competição' using errcode = '42501';
   end if;
 
-  delete from public.estatisticas;
-  delete from public.jogos;
+  delete from public.estatisticas where id is not null;
+  delete from public.jogos where id is not null;
 end;
 $$;
 
