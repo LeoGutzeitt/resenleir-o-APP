@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Newspaper, Plus, Star, Calendar, User, X } from 'lucide-react';
+import { Newspaper, Plus, Star, Calendar } from 'lucide-react';
 import type { Noticia, Clube } from '../types';
 
 export function Noticias() {
@@ -15,9 +15,12 @@ export function Noticias() {
   const [imagem, setImagem] = useState<File | null>(null);
   const [meuClube, setMeuClube] = useState<Clube | null>(null);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const carregarNoticias = async () => {
+<<<<<<< HEAD
       const [todasNoticias, destaques, clube] = await Promise.all([
         db.noticias.listar(),
         db.noticias.listarDestaques(),
@@ -27,8 +30,29 @@ export function Noticias() {
       setNoticiasDestaque(destaques);
       setMeuClube(clube || null);
       setLoading(false);
+=======
+      setLoading(true);
+      setErro('');
+      try {
+        const [todasNoticias, destaques, clube] = await Promise.all([
+          db.noticias.listar(),
+          db.noticias.listarDestaques(),
+          user && isDono ? db.clubes.buscarPorDono(user.id, user.clube_id) : Promise.resolve(null)
+        ]);
+        if (!ativo) return;
+        setNoticias(todasNoticias);
+        setNoticiasDestaque(destaques);
+        setMeuClube(clube || null);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar as notícias.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
+>>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     };
-    carregarNoticias();
+    void carregarNoticias();
+    return () => { ativo = false; };
   }, [user, isDono]);
 
   const handleCriarNoticia = async () => {
@@ -89,7 +113,9 @@ export function Noticias() {
     const [clube, setClube] = useState<Clube | null>(null);
     
     useEffect(() => {
-      getClubeInfo(noticia.clube_id).then(c => setClube(c || null));
+      getClubeInfo(noticia.clube_id)
+        .then(c => setClube(c || null))
+        .catch(error => console.error('Não foi possível carregar o clube da notícia:', error));
     }, [noticia.clube_id]);
     
     return (
@@ -142,6 +168,10 @@ export function Noticias() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   return (

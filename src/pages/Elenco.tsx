@@ -2,8 +2,9 @@ import { useParams, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Plus, Trash2, Camera } from 'lucide-react';
+import { Users, Plus, Trash2 } from 'lucide-react';
 import type { Clube, Jogador } from '../types';
+import { idsIguais } from '../lib/ids';
 
 export function Elenco() {
   const { clubeId } = useParams<{ clubeId: string }>();
@@ -18,9 +19,12 @@ export function Elenco() {
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
   const [meusClube, setMeusClube] = useState<Clube | null>(null);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const fetchData = async () => {
+<<<<<<< HEAD
       if (!clubeId) return;
       
   const [clubeData, jogadoresData, meusClubeData] = await Promise.all([
@@ -33,11 +37,42 @@ export function Elenco() {
       setJogadores(jogadoresData);
       setMeusClube(meusClubeData);
       setLoading(false);
+=======
+      setLoading(true);
+      setErro('');
+      try {
+        if (!clubeId) return;
+        const [clubeData, jogadoresData, meusClubeData] = await Promise.all([
+          db.clubes.buscarPorId(clubeId),
+          db.jogadores.listar(clubeId),
+          user && isDono ? db.clubes.buscarPorDono(user.id, user.clube_id) : Promise.resolve(null)
+        ]);
+        if (!ativo) return;
+        setClube(clubeData || null);
+        setJogadores(jogadoresData);
+        setMeusClube(meusClubeData);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar o elenco.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
     };
-    fetchData();
+    void fetchData();
+    const intervalo = window.setInterval(() => {
+      if (!clubeId) return;
+      void db.jogadores.listar(clubeId)
+        .then((dados) => { if (ativo) setJogadores(dados); })
+        .catch((error) => console.error('Não foi possível sincronizar o elenco:', error));
+    }, 3000);
+    return () => {
+      ativo = false;
+      window.clearInterval(intervalo);
+>>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
+    };
   }, [clubeId, user, isDono]);
 
-  const podeEditar = isAdmin || (isDono && meusClube?.id === clubeId);
+  const podeEditar = isAdmin || (isDono && idsIguais(meusClube?.id, clubeId));
 
   if (loading) {
     return (
@@ -45,6 +80,10 @@ export function Elenco() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   if (!clube) {

@@ -2,29 +2,41 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../lib/db';
 import { Trophy, Swords, Goal, BarChart3 } from 'lucide-react';
-import type { TabelaLinha, ArtilheiroRanking, Jogo } from '../types';
+import type { TabelaLinha, ArtilheiroRanking, Clube, Jogo } from '../types';
 
 export function Home() {
   const [tabela, setTabela] = useState<TabelaLinha[]>([]);
   const [artilharia, setArtilharia] = useState<ArtilheiroRanking[]>([]);
   const [jogosRecentes, setJogosRecentes] = useState<Jogo[]>([]);
+  const [clubes, setClubes] = useState<Clube[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const fetchData = async () => {
-      const [tabelaData, artilhariaData, jogosData] = await Promise.all([
-        db.views.tabela(),
-        db.views.artilharia(),
-        db.jogos.listar()
-      ]);
-      
-      setTabela(tabelaData);
-      setArtilharia(artilhariaData);
-      setJogosRecentes(jogosData.filter(j => j.status === 'realizado').slice(0, 3));
-      setLoading(false);
+      try {
+        const [tabelaData, artilhariaData, jogosData, clubesData] = await Promise.all([
+          db.views.tabela(),
+          db.views.artilharia(),
+          db.jogos.listar(),
+          db.clubes.listar(),
+        ]);
+        if (!ativo) return;
+        setTabela(tabelaData);
+        setArtilharia(artilhariaData);
+        setJogosRecentes(jogosData.filter(j => j.status === 'realizado').slice(0, 3));
+        setClubes(clubesData);
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar os dados do campeonato.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
     };
 
-    fetchData();
+    void fetchData();
+    return () => { ativo = false; };
   }, []);
 
   const lider = tabela[0];
@@ -36,6 +48,10 @@ export function Home() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   return (
@@ -92,11 +108,11 @@ export function Home() {
           </div>
           <div className="space-y-2">
             {jogosRecentes.map(jogo => {
-              const casa = db.clubes.buscarPorId(jogo.clube_casa_id);
-              const fora = db.clubes.buscarPorId(jogo.clube_fora_id);
+              const casa = clubes.find((clube) => clube.id === jogo.clube_casa_id);
+              const fora = clubes.find((clube) => clube.id === jogo.clube_fora_id);
               return (
                 <div key={jogo.id} className="text-sm text-gray-400">
-                  {casa?.then(c => c?.nome)} {jogo.gols_casa} x {jogo.gols_fora} {fora?.then(f => f?.nome)}
+                  {casa?.nome || 'Clube'} {jogo.gols_casa} x {jogo.gols_fora} {fora?.nome || 'Clube'}
                 </div>
               );
             })}

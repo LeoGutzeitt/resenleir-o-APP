@@ -1,7 +1,8 @@
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/db';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { Clube } from '../../types';
 import {
   Trophy, Swords, Goal, BarChart3, ArrowLeftRight, Store,
   Shield, LogOut, Menu, X, Home, UserCircle, Users, Newspaper
@@ -12,7 +13,29 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const meusClube = user && isDono ? db.clubes.buscarPorDono(user.id) : null;
+  const [meusClube, setMeusClube] = useState<Clube | null>(null);
+
+  useEffect(() => {
+    let ativo = true;
+
+    if (!user || !isDono) {
+      setMeusClube(null);
+      return;
+    }
+
+    db.clubes.buscarPorDono(user.id, user.clube_id)
+      .then((clube) => {
+        if (ativo) setMeusClube(clube || null);
+      })
+      .catch((error) => {
+        console.error('Não foi possível carregar o clube do usuário:', error);
+        if (ativo) setMeusClube(null);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [user, isDono]);
 
   const navItems = [
     { path: '/', label: 'Início', icon: Home },
@@ -26,8 +49,8 @@ export function Layout() {
     { path: '/noticias', label: 'Notícias', icon: Newspaper },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -66,7 +89,7 @@ export function Layout() {
             <div className="flex items-center gap-3">
               {user ? (
                 <>
-                  {isDono && meusClube && (
+                  {isDono && (
                     <Link
                       to="/meu-clube"
                       className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -76,7 +99,7 @@ export function Layout() {
                       }`}
                     >
                       <Shield className="w-4 h-4" />
-                      {meusClube.nome}
+                      {meusClube?.nome || 'Meu Clube'}
                     </Link>
                   )}
                   {isAdmin && (
@@ -140,7 +163,7 @@ export function Layout() {
                   {item.label}
                 </Link>
               ))}
-              {isDono && meusClube && (
+              {isDono && (
                 <Link
                   to="/meu-clube"
                   onClick={() => setMobileMenuOpen(false)}
@@ -151,7 +174,7 @@ export function Layout() {
                   }`}
                 >
                   <Shield className="w-5 h-5" />
-                  {meusClube.nome}
+                  {meusClube?.nome || 'Meu Clube'}
                 </Link>
               )}
               {isAdmin && (

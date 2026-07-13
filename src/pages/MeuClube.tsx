@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, Swords, Goal, ArrowLeftRight, Camera, Save, X } from 'lucide-react';
+import { Users, Swords, Goal, ArrowLeftRight, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { Clube, Jogador, Jogo, ArtilheiroRanking } from '../types';
+import type { Clube, Jogador, Jogo, ArtilheiroRanking, TabelaLinha } from '../types';
 
 export function MeuClube() {
   const { user } = useAuth();
@@ -11,14 +11,18 @@ export function MeuClube() {
   const [novoEscudo, setNovoEscudo] = useState<File | null>(null);
   const [meusClube, setMeusClube] = useState<Clube | null>(null);
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
+  const [clubes, setClubes] = useState<Clube[]>([]);
   const [jogos, setJogos] = useState<Jogo[]>([]);
-  const [tabela, setTabela] = useState<any[]>([]);
+  const [tabela, setTabela] = useState<TabelaLinha[]>([]);
   const [artilharia, setArtilharia] = useState<ArtilheiroRanking[]>([]);
   const [adversarios, setAdversarios] = useState<Record<string, Clube>>({});
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState('');
 
   useEffect(() => {
+    let ativo = true;
     const fetchData = async () => {
+<<<<<<< HEAD
       if (!user) return;
       
       // Usar clube_id do usuário em vez de buscarPorDono
@@ -59,11 +63,46 @@ export function MeuClube() {
       setArtilharia(artilhariaData.filter((a: any) => String(a.clube_id) === String(clube.id)));
       setAdversarios(adversariosMap);
       setLoading(false);
+=======
+      setLoading(true);
+      setErro('');
+      try {
+        if (!user) {
+          setMeusClube(null);
+          return;
+        }
+        const clube = await db.clubes.buscarPorDono(user.id, user.clube_id);
+        if (!clube) {
+          if (ativo) setMeusClube(null);
+          return;
+        }
+        const [jogadoresData, clubesData, jogosData, tabelaData, artilhariaData] = await Promise.all([
+          db.jogadores.listar(clube.id),
+          db.clubes.listar(),
+          db.jogos.buscarPorClube(clube.id),
+          db.views.tabela(),
+          db.views.artilharia()
+        ]);
+        if (!ativo) return;
+        setMeusClube(clube);
+        setJogadores(jogadoresData);
+        setClubes(clubesData);
+        setJogos(jogosData);
+        setTabela(tabelaData);
+        setArtilharia(artilhariaData.filter((a) => a.clube_id === clube.id));
+      } catch (error) {
+        console.error(error);
+        if (ativo) setErro('Não foi possível carregar o clube associado ao seu perfil.');
+      } finally {
+        if (ativo) setLoading(false);
+      }
+>>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     };
-    fetchData();
+    void fetchData();
+    return () => { ativo = false; };
   }, [user]);
 
-  const minhaPosicao = tabela.find((t: any) => t.clube_id === meusClube?.id);
+  const minhaPosicao = tabela.find((t) => t.clube_id === meusClube?.id);
 
   const handleSalvarEscudo = async () => {
     if (!novoEscudo || !meusClube) return;
@@ -74,7 +113,8 @@ export function MeuClube() {
       reader.readAsDataURL(novoEscudo);
     });
 
-    await db.clubes.atualizar(meusClube.id, { escudo_url: escudo_url as string });
+    const clubeAtualizado = await db.clubes.atualizar(meusClube.id, { escudo_url: escudo_url as string });
+    if (clubeAtualizado) setMeusClube(clubeAtualizado);
     setShowEditEscudo(false);
     setNovoEscudo(null);
   };
@@ -85,6 +125,10 @@ export function MeuClube() {
         <div className="text-yellow-500">Carregando...</div>
       </div>
     );
+  }
+
+  if (erro) {
+    return <div className="text-center py-12 text-red-400">{erro}</div>;
   }
 
   if (!meusClube) {
@@ -227,8 +271,13 @@ export function MeuClube() {
         </div>
         <div className="divide-y divide-gray-800">
           {jogos.filter(j => j.status === 'agendado').slice(0, 3).map(jogo => {
+<<<<<<< HEAD
             const advId = jogo.clube_casa_id === meusClube.id ? jogo.clube_fora_id : jogo.clube_casa_id;
             const adversario = adversarios[advId] || null;
+=======
+            const adversarioId = jogo.clube_casa_id === meusClube.id ? jogo.clube_fora_id : jogo.clube_casa_id;
+            const adversario = clubes.find((clube) => clube.id === adversarioId);
+>>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
             const isCasa = jogo.clube_casa_id === meusClube.id;
             return (
               <div key={jogo.id} className="p-4 flex items-center justify-between">
@@ -267,6 +316,10 @@ export function MeuClube() {
           </div>
           <div className="divide-y divide-gray-800">
             {artilharia.slice(0, 5).map((j, idx) => {
+<<<<<<< HEAD
+=======
+              const jogador = jogadores.find((item) => item.id === j.jogador_id);
+>>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
               return (
                 <div key={j.jogador_id} className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
