@@ -400,14 +400,11 @@ begin
     raise exception 'Orçamento insuficiente';
   end if;
 
-  select numero into numero_disponivel
-  from generate_series(1, 99) as numeros(numero)
-  where not exists (
-    select 1 from public.jogadores j
-    where j.clube_id = clube_atual_id and j.numero = numero
-  )
-  order by numero
-  limit 1;
+  -- Mantém números únicos sem bloquear o draft quando as camisas 1–99 já existem.
+  select coalesce(max(j.numero), 0) + 1
+  into numero_disponivel
+  from public.jogadores j
+  where j.clube_id = clube_atual_id;
 
   if numero_disponivel is null then
     raise exception 'O clube não possui número de camisa disponível';
