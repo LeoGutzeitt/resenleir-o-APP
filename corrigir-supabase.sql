@@ -38,6 +38,13 @@ alter table public.transferencias add column if not exists status text not null 
 alter table public.transferencias add column if not exists mensagem text not null default '';
 alter table public.transferencias add column if not exists data date not null default current_date;
 
+-- Campos necessários para jogadores criados pelo draft e exibidos no mercado.
+alter table public.jogadores add column if not exists numero integer;
+alter table public.jogadores add column if not exists foto_url text;
+alter table public.jogadores add column if not exists status text not null default 'ativo';
+alter table public.jogadores add column if not exists valor_mercado numeric not null default 0;
+alter table public.jogadores add column if not exists jogos_suspensao integer not null default 0;
+
 insert into public.draft_estado (id) values (1)
 on conflict (id) do nothing;
 
