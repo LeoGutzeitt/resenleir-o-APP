@@ -215,6 +215,21 @@ export function Admin() {
     }
   };
 
+  const handleResetarCompeticao = async () => {
+    if (!confirm('Remover todos os jogos e estatísticas? Clubes, elencos, draft e transferências serão preservados.')) return;
+    setGerandoJogos(true);
+    setErro('');
+    try {
+      await db.jogos.resetarCompeticao();
+      setJogos([]);
+    } catch (error) {
+      console.error(error);
+      setErro(error instanceof Error ? error.message : 'Não foi possível limpar a competição.');
+    } finally {
+      setGerandoJogos(false);
+    }
+  };
+
   const handleAbrirEstatisticas = async (jogoId: string) => {
     const jogo = jogosPorId.get(jogoId);
     if (!jogo) return;
@@ -536,6 +551,10 @@ export function Admin() {
               <h2 className="text-lg font-semibold">Gerenciar Jogos</h2>
               <p className="text-sm text-gray-400 mt-1">Edite os resultados e estatísticas dos jogos</p>
             </div>
+            <div className="flex gap-2">
+            {jogos.length > 0 && (
+              <button onClick={() => void handleResetarCompeticao()} disabled={gerandoJogos} className="px-4 py-2 bg-red-500/15 text-red-400 rounded-lg font-bold hover:bg-red-500/25 disabled:opacity-60">Limpar competição</button>
+            )}
             {jogos.length === 0 && (
               <button
                 onClick={() => void handleGerarJogos()}
@@ -546,6 +565,7 @@ export function Admin() {
                 {gerandoJogos ? 'Gerando...' : 'Gerar Jogos'}
               </button>
             )}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">

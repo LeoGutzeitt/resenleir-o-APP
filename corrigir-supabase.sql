@@ -630,7 +630,15 @@ begin
           clube_casa, clube_fora, null, null, rodada, 'grupos',
           current_date + ((rodada - 1) * 7), 'agendado'
         );
-        total_criado := total_criado + 1;
+        -- Segundo turno: os mesmos confrontos com mando invertido.
+        insert into public.jogos (
+          clube_casa_id, clube_fora_id, gols_casa, gols_fora,
+          rodada, fase, data, status
+        ) values (
+          clube_fora, clube_casa, null, null, rodada + (quantidade - 1), 'grupos',
+          current_date + ((rodada + quantidade - 2) * 7), 'agendado'
+        );
+        total_criado := total_criado + 2;
       end if;
     end loop;
 
@@ -638,6 +646,25 @@ begin
   end loop;
 
   return total_criado;
+end;
+$$;
+
+-- Limpa somente a competição: resultados e estatísticas. Clubes, donos, elencos,
+-- valores de mercado, transferências e o histórico do draft são preservados.
+create or replace function public.admin_resetar_competicao()
+returns void
+language plpgsql
+security definer
+set search_path = public
+set row_security = off
+as $$
+begin
+  if not public.usuario_eh_admin() then
+    raise exception 'Apenas o administrador pode limpar a competição' using errcode = '42501';
+  end if;
+
+  delete from public.estatisticas;
+  delete from public.jogos;
 end;
 $$;
 
@@ -651,12 +678,14 @@ revoke all on function public.criar_proposta_transferencia(bigint, bigint, numer
 revoke all on function public.aceitar_proposta_transferencia(bigint) from public;
 revoke all on function public.rejeitar_proposta_transferencia(bigint) from public;
 revoke all on function public.admin_gerar_jogos() from public;
+revoke all on function public.admin_resetar_competicao() from public;
 grant execute on function public.admin_iniciar_draft(bigint[]) to authenticated;
 grant execute on function public.draft_contratar_jogador(text, text, numeric) to authenticated;
 grant execute on function public.criar_proposta_transferencia(bigint, bigint, numeric, text, bigint, text) to authenticated;
 grant execute on function public.aceitar_proposta_transferencia(bigint) to authenticated;
 grant execute on function public.rejeitar_proposta_transferencia(bigint) to authenticated;
 grant execute on function public.admin_gerar_jogos() to authenticated;
+grant execute on function public.admin_resetar_competicao() to authenticated;
 
 -- Remove também políticas antigas com nomes não previstos. Uma política
 -- residual em usuarios era suficiente para reintroduzir recursão em todo app.

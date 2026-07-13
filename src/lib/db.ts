@@ -244,6 +244,10 @@ export const db = {
       verificarErro(error, 'Erro ao gerar jogos');
       return Number(data || 0);
     },
+    resetarCompeticao: async (): Promise<void> => {
+      const { error } = await supabase.rpc('admin_resetar_competicao');
+      verificarErro(error, 'Erro ao limpar a competição');
+    },
   },
 
   // Estatísticas
