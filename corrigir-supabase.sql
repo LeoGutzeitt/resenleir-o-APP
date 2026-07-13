@@ -30,6 +30,14 @@ create table if not exists public.draft_contratacoes (
   unique (jogador_id)
 );
 
+-- Bancos criados pela primeira versão podem ter a tabela de transferências
+-- incompleta. Estas colunas são usadas pelas propostas de compra/troca.
+alter table public.transferencias add column if not exists tipo text not null default 'compra';
+alter table public.transferencias add column if not exists jogador_troca_id bigint references public.jogadores(id);
+alter table public.transferencias add column if not exists status text not null default 'pendente';
+alter table public.transferencias add column if not exists mensagem text not null default '';
+alter table public.transferencias add column if not exists data date not null default current_date;
+
 insert into public.draft_estado (id) values (1)
 on conflict (id) do nothing;
 
