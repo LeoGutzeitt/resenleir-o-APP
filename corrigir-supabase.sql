@@ -316,7 +316,8 @@ begin
     raise exception 'A ordem do draft deve conter todos os clubes uma única vez';
   end if;
 
-  delete from public.draft_contratacoes;
+  -- A condição explícita também funciona em bancos com proteção contra DELETE sem WHERE.
+  delete from public.draft_contratacoes where id is not null;
   update public.draft_estado
   set iniciado = true,
       ordem_clubes = p_ordem_clubes,
@@ -663,8 +664,8 @@ begin
     raise exception 'Apenas o administrador pode limpar a competição' using errcode = '42501';
   end if;
 
-  delete from public.estatisticas;
-  delete from public.jogos;
+  delete from public.estatisticas where id is not null;
+  delete from public.jogos where id is not null;
 end;
 $$;
 
