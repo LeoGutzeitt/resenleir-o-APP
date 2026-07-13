@@ -20,17 +20,6 @@ export function Noticias() {
   useEffect(() => {
     let ativo = true;
     const carregarNoticias = async () => {
-<<<<<<< HEAD
-      const [todasNoticias, destaques, clube] = await Promise.all([
-        db.noticias.listar(),
-        db.noticias.listarDestaques(),
-        user && isDono && user.clube_id ? db.clubes.buscarPorId(String(user.clube_id)) : Promise.resolve(null)
-      ]);
-      setNoticias(todasNoticias);
-      setNoticiasDestaque(destaques);
-      setMeuClube(clube || null);
-      setLoading(false);
-=======
       setLoading(true);
       setErro('');
       try {
@@ -49,7 +38,6 @@ export function Noticias() {
       } finally {
         if (ativo) setLoading(false);
       }
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     };
     void carregarNoticias();
     return () => { ativo = false; };

@@ -27,17 +27,6 @@ export function Mercado() {
   useEffect(() => {
     let ativo = true;
     const fetchData = async () => {
-<<<<<<< HEAD
-      const [clubesData, jogadoresData, meuClubeData] = await Promise.all([
-        db.clubes.listar(),
-        db.jogadores.listar(),
-        user && isDono && user.clube_id ? db.clubes.buscarPorId(String(user.clube_id)) : Promise.resolve(null)
-      ]);
-      setClubes(clubesData);
-      setTodosJogadores(jogadoresData);
-      setMeusClube(meuClubeData || null);
-      setLoading(false);
-=======
       setLoading(true);
       setErro('');
       try {
@@ -66,7 +55,6 @@ export function Mercado() {
     return () => {
       ativo = false;
       window.clearInterval(intervalo);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     };
   }, [user, isDono]);
 
@@ -336,16 +324,6 @@ export function Mercado() {
                   Seu orçamento: {meusClube ? formatValor(meusClube.orcamento) : 'R$ 0'}
                 </p>
               </div>
-
-              {(tipoProposta === 'troca' || tipoProposta === 'jogador_mais_valor') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Jogador oferecido na troca</label>
-                  <select value={jogadorTrocaId} onChange={(e) => setJogadorTrocaId(e.target.value)} required className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500">
-                    <option value="">Selecione um jogador do seu elenco</option>
-                    {todosJogadores.filter(j => j.clube_id === meusClube?.id && j.status === 'ativo').map(j => <option key={j.id} value={j.id}>{j.nome} · {j.posicao}</option>)}
-                  </select>
-                </div>
-              )}
 
               {/* Mensagem */}
               <div>

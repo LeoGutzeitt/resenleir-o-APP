@@ -23,66 +23,6 @@ const verificarErro = (error: { message: string } | null, operacao: string) => {
 
 // ============== SUPABASE DB FUNCTIONS ==============
 
-// Helper function to get or create user profile
-const getUserProfile = async (authUser: { id: string; email?: string }): Promise<Usuario | null> => {
-  const { data: userData, error: userError } = await supabase
-    .from('usuarios')
-    .select('*')
-    .eq('id', authUser.id)
-    .single();
-
-  if (userData) {
-    return {
-      id: userData.id,
-      email: userData.email,
-      nome: userData.nome,
-      role: userData.role,
-      clube_id: userData.clube_id
-    };
-  }
-
-  // If user doesn't have profile, create one
-  if (userError?.code === 'PGRST116' && authUser.email) {
-    const isAdmin = authUser.email === 'admin@resenleirao.com';
-    const clubeMap: Record<string, number | null> = {
-      'leo@resenleirao.com': 1,
-      'felipe@resenleirao.com': 2,
-      'diego@resenleirao.com': 3,
-      'pedro@resenleirao.com': 4,
-      'berenguer@resenleirao.com': 5,
-      'bruno@resenleirao.com': 6,
-      'yves@resenleirao.com': 7,
-      'adriano@resenleirao.com': 8,
-      'jhonny@resenleirao.com': 9,
-      'piscina@resenleirao.com': 10,
-    };
-
-    const { data: newUserData } = await supabase
-      .from('usuarios')
-      .insert({
-        id: authUser.id,
-        email: authUser.email,
-        nome: authUser.email.split('@')[0],
-        role: isAdmin ? 'admin' : 'dono',
-        clube_id: clubeMap[authUser.email] || null
-      })
-      .select()
-      .single();
-
-    if (newUserData) {
-      return {
-        id: newUserData.id,
-        email: newUserData.email,
-        nome: newUserData.nome,
-        role: newUserData.role,
-        clube_id: newUserData.clube_id
-      };
-    }
-  }
-
-  return null;
-};
-
 export const db = {
   // Auth
   auth: {
@@ -94,13 +34,44 @@ export const db = {
 
       if (error || !data.user) return null;
 
-      return getUserProfile(data.user);
+      // Buscar dados do usuário da tabela usuarios
+      const { data: userData } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (userData) {
+        return {
+          id: userData.id,
+          email: userData.email,
+          nome: userData.nome,
+          role: userData.role,
+          clube_id: userData.clube_id
+        };
+      }
+      return null;
     },
     getCurrentUser: async (): Promise<Usuario | null> => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return null;
 
-      return getUserProfile(session.user);
+      const { data: userData } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (userData) {
+        return {
+          id: userData.id,
+          email: userData.email,
+          nome: userData.nome,
+          role: userData.role,
+          clube_id: userData.clube_id
+        };
+      }
+      return null;
     },
     setCurrentUser: async (user: Usuario | null) => {
       // Não usado com Supabase Auth - mantido para compatibilidade
@@ -207,11 +178,7 @@ export const db = {
     },
     criar: async (jogador: Omit<Jogador, "id">): Promise<Jogador> => {
       const { data, error } = await supabase.from('jogadores').insert(jogador).select().single();
-<<<<<<< HEAD
-      if (error) throw new Error(error.message);
-=======
       verificarErro(error, 'Erro ao criar jogador');
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
       return data;
     },
     atualizar: async (id: string, dados: Partial<Jogador>): Promise<Jogador | null> => {
@@ -272,17 +239,10 @@ export const db = {
       verificarErro(error, 'Erro ao remover jogo');
       return !error;
     },
-<<<<<<< HEAD
-    gerarIdaVolta: async (substituir = false): Promise<number> => {
-      const { data, error } = await supabase.rpc('gerar_calendario_ida_volta', { p_substituir: substituir });
-      if (error) throw new Error(error.message);
-      return data || 0;
-=======
     gerarTabela: async (): Promise<number> => {
       const { data, error } = await supabase.rpc('admin_gerar_jogos');
       verificarErro(error, 'Erro ao gerar jogos');
       return Number(data || 0);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     },
   },
 
@@ -341,22 +301,6 @@ export const db = {
     },
     criar: async (
       t: Omit<Transferencia, "id">,
-<<<<<<< HEAD
-    ): Promise<{ ok: false; erro: string } | { ok: true; data: Transferencia }> => {
-      const { data, error } = await supabase.rpc('criar_proposta_transferencia', {
-        p_jogador_id: t.jogador_id, p_valor: t.valor, p_tipo: t.tipo,
-        p_jogador_troca_id: t.jogador_troca_id, p_mensagem: t.mensagem || '',
-      });
-      if (error) return { ok: false, erro: error.message };
-      return { ok: true, data };
-    },
-    aceitar: async (id: string): Promise<Transferencia | null> => {
-      const { data } = await supabase.rpc('decidir_transferencia', { p_transferencia_id: id, p_aceitar: true });
-      return data;
-    },
-    rejeitar: async (id: string): Promise<Transferencia | null> => {
-      const { data } = await supabase.rpc('decidir_transferencia', { p_transferencia_id: id, p_aceitar: false });
-=======
     ): Promise<{ ok: false; erro: string } | { ok: true }> => {
       const { error } = await supabase.rpc('criar_proposta_transferencia', {
         p_jogador_id: t.jogador_id,
@@ -381,20 +325,11 @@ export const db = {
       verificarErro(error, 'Erro ao rejeitar proposta');
       const { data, error: erroBusca } = await supabase.from('transferencias').select('*').eq('id', id).single();
       verificarErro(erroBusca, 'Erro ao recarregar proposta');
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
       return data;
     },
   },
 
   draft: {
-<<<<<<< HEAD
-    aberto: async (): Promise<any | null> => (await supabase.from('drafts').select('*').eq('status', 'aberto').order('criado_em', { ascending: false }).limit(1).maybeSingle()).data,
-    iniciar: async (): Promise<any> => { const { data, error } = await supabase.rpc('iniciar_draft'); if (error) throw new Error(error.message); return data; },
-    escolhas: async (draftId: string): Promise<any[]> => (await supabase.from('escolhas_draft').select('*').eq('draft_id', draftId).order('escolha')).data || [],
-    escolher: async (nome: string, posicao: Jogador['posicao'], numero: number, valor: number): Promise<Jogador> => {
-      const { data, error } = await supabase.rpc('escolher_no_draft', { p_nome: nome, p_posicao: posicao, p_numero: numero, p_valor: valor });
-      if (error) throw new Error(error.message); return data;
-=======
     buscarEstado: async (): Promise<DraftEstado> => {
       const { data, error } = await supabase.from('draft_estado').select('*').eq('id', 1).single();
       verificarErro(error, 'Erro ao carregar estado do draft');
@@ -419,7 +354,6 @@ export const db = {
         p_valor: dados.valor,
       });
       verificarErro(error, 'Erro ao contratar jogador no draft');
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     },
   },
 

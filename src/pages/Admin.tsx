@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { useState, useEffect } from 'react';
-=======
 import { useEffect, useMemo, useState } from 'react';
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
 import { db } from '../lib/db';
 import { useAuth } from '../contexts/AuthContext';
 import { Shield, Plus, Trash2, Edit3, Save, X, DollarSign, Users, CheckCircle } from 'lucide-react';
@@ -29,28 +25,6 @@ export function Admin() {
   const [editGolsCasa, setEditGolsCasa] = useState('');
   const [editGolsFora, setEditGolsFora] = useState('');
   const [jogoSelecionado, setJogoSelecionado] = useState<string | null>(null);
-<<<<<<< HEAD
-  const [estatisticasJogo, setEstatisticasJogo] = useState<Map<string, {gols: number, assistencias: number, cartoes_amarelos: number, cartoes_vermelhos: number}>>(new Map());
-  const [clubes, setClubes] = useState<any[]>([]);
-  const [jogos, setJogos] = useState<any[]>([]);
-  const [todosJogadores, setTodosJogadores] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const [clubesData, jogosData, jogadoresData] = await Promise.all([
-        db.clubes.listar(),
-        db.jogos.listar(),
-        db.jogadores.listar()
-      ]);
-      setClubes(clubesData);
-      setJogos(jogosData);
-      setTodosJogadores(jogadoresData);
-      setLoading(false);
-    };
-    fetchData();
-  }, []);
-=======
   const [estatisticasJogo, setEstatisticasJogo] = useState<Map<string, ValoresEstatistica>>(new Map());
   const [clubes, setClubes] = useState<Clube[]>([]);
   const [donos, setDonos] = useState<Usuario[]>([]);
@@ -118,21 +92,12 @@ export function Admin() {
   if (authLoading || (isAdmin && loading)) {
     return <div className="text-center py-12 text-yellow-500">Carregando painel administrativo...</div>;
   }
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
 
   if (!isAdmin) {
     return (
       <div className="text-center py-12">
         <Shield className="w-12 h-12 text-red-500 mx-auto mb-3" />
         <p className="text-gray-400">Acesso restrito ao administrador</p>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="text-yellow-500">Carregando...</div>
       </div>
     );
   }
@@ -171,28 +136,6 @@ export function Admin() {
     } finally {
       setSalvandoClube(false);
     }
-<<<<<<< HEAD
-
-    await db.clubes.criar({
-      nome: novoClubeNome,
-      escudo_url,
-      cor_principal: novoClubeCor,
-      usuario_dono_id: null,
-      orcamento: 100000000,
-    });
-    setShowAddClube(false);
-    setNovoClubeNome('');
-    setNovoClubeCor('#FF4500');
-    setNovoClubeEscudo(null);
-    // Recarregar clubes
-    setClubes(await db.clubes.listar());
-  };
-
-  const handleRemoveClube = async (id: string) => {
-    if (confirm('Tem certeza que deseja remover este clube?')) {
-      await db.clubes.remover(id);
-      setClubes(await db.clubes.listar());
-=======
   };
 
   const handleAssociarDono = async (clubeId: string, usuarioId: string | null) => {
@@ -218,16 +161,11 @@ export function Admin() {
     if (confirm('Tem certeza que deseja remover este clube?')) {
       const removido = await db.clubes.remover(id);
       if (removido) setClubes((atuais) => atuais.filter((clube) => clube.id !== id));
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     }
   };
 
   const handleEditClube = (id: string) => {
-<<<<<<< HEAD
-    const clube = clubes.find((c: any) => c.id === id);
-=======
     const clube = clubesPorId.get(id);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     if (clube) {
       setEditingClubeId(id);
       setEditClubeNome(clube.nome);
@@ -236,25 +174,16 @@ export function Admin() {
   };
 
   const handleSaveEdit = async (id: string) => {
-<<<<<<< HEAD
-    await db.clubes.atualizar(id, { 
-=======
     const clube = await db.clubes.atualizar(id, {
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
       nome: editClubeNome,
       orcamento: parseInt(editClubeOrcamento) || 0
     });
     if (clube) setClubes((atuais) => atuais.map((atual) => atual.id === id ? clube : atual));
     setEditingClubeId(null);
-    setClubes(await db.clubes.listar());
   };
 
   const handleEditJogo = (id: string) => {
-<<<<<<< HEAD
-    const jogo = jogos.find((j: any) => j.id === id);
-=======
     const jogo = jogosPorId.get(id);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     if (jogo) {
       setEditingJogoId(id);
       setEditGolsCasa(String(jogo.gols_casa || 0));
@@ -265,27 +194,11 @@ export function Admin() {
   const handleSaveJogo = async (id: string) => {
     const golsCasa = parseInt(editGolsCasa) || 0;
     const golsFora = parseInt(editGolsFora) || 0;
-<<<<<<< HEAD
-    await db.jogos.atualizarResultado(id, golsCasa, golsFora);
-=======
     const jogo = await db.jogos.atualizarResultado(id, golsCasa, golsFora);
     if (jogo) setJogos((atuais) => atuais.map((atual) => atual.id === id ? jogo : atual));
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     setEditingJogoId(null);
-    setJogos(await db.jogos.listar());
   };
 
-<<<<<<< HEAD
-  const handleAbrirEstatisticas = async (jogoId: string) => {
-    const jogo = jogos.find((j: any) => j.id === jogoId);
-    if (!jogo) return;
-
-    const [jogadoresCasa, jogadoresFora, stats] = await Promise.all([
-      db.jogadores.listar(jogo.clube_casa_id),
-      db.jogadores.listar(jogo.clube_fora_id),
-      db.estatisticas.listarPorJogo(jogoId)
-    ]);
-=======
   const handleGerarJogos = async () => {
     setGerandoJogos(true);
     setErro('');
@@ -309,12 +222,11 @@ export function Admin() {
     const jogadoresCasa = todosJogadores.filter((jogador) => jogador.clube_id === jogo.clube_casa_id);
     const jogadoresFora = todosJogadores.filter((jogador) => jogador.clube_id === jogo.clube_fora_id);
     const stats = await db.estatisticas.listarPorJogo(jogoId);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     
     const novasStats = new Map<string, {gols: number, assistencias: number, cartoes_amarelos: number, cartoes_vermelhos: number}>();
     
-    [...jogadoresCasa, ...jogadoresFora].forEach((jogador: any) => {
-      const stat = stats.find((s: any) => s.jogador_id === jogador.id);
+    [...jogadoresCasa, ...jogadoresFora].forEach(jogador => {
+      const stat = stats.find(s => s.jogador_id === jogador.id);
       novasStats.set(jogador.id, {
         gols: stat?.gols || 0,
         assistencias: stat?.assistencias || 0,
@@ -328,17 +240,6 @@ export function Admin() {
   };
 
   const handleSalvarEstatisticas = async (jogoId: string) => {
-<<<<<<< HEAD
-    const jogo = jogos.find((j: any) => j.id === jogoId);
-    if (!jogo) return;
-
-    const statsAntigas = await db.estatisticas.listarPorJogo(jogoId);
-    for (const stat of statsAntigas) {
-      await db.estatisticas.remover(stat.id);
-    }
-
-    for (const [jogadorId, valores] of estatisticasJogo.entries()) {
-=======
     const jogo = jogosPorId.get(jogoId);
     if (!jogo) return;
 
@@ -346,7 +247,6 @@ export function Admin() {
     await Promise.all(statsAntigas.map((stat) => db.estatisticas.remover(stat.id)));
 
     for (const [jogadorId, valores] of estatisticasJogo) {
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
       if (valores.gols > 0 || valores.assistencias > 0 || valores.cartoes_amarelos > 0 || valores.cartoes_vermelhos > 0) {
         await db.estatisticas.criar({
           jogador_id: jogadorId,
@@ -357,11 +257,7 @@ export function Admin() {
           cartoes_vermelhos: valores.cartoes_vermelhos
         });
 
-<<<<<<< HEAD
-        const jogador = await db.jogadores.buscarPorId(jogadorId);
-=======
         const jogador = jogadoresPorId.get(jogadorId);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
         if (jogador) {
           let jogosSuspensao = 0;
           const cartoesAmarelos = valores.cartoes_amarelos;
@@ -371,13 +267,8 @@ export function Admin() {
           jogosSuspensao += cartoesVermelhos;
           
           if (jogosSuspensao > 0) {
-<<<<<<< HEAD
-            await db.jogadores.atualizar(jogadorId, {
-              jogos_suspensao: (jogador.jogos_suspensao || 0) + jogosSuspensao,
-=======
             const jogadorAtualizado = await db.jogadores.atualizar(jogadorId, {
               jogos_suspensao: jogador.jogos_suspensao + jogosSuspensao,
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
               status: 'suspenso'
             });
             if (jogadorAtualizado) {
@@ -395,59 +286,28 @@ export function Admin() {
   const handleUpdateEstatistica = (jogadorId: string, campo: 'gols' | 'assistencias' | 'cartoes_amarelos' | 'cartoes_vermelhos', valor: number) => {
     setEstatisticasJogo(prev => {
       const novas = new Map(prev);
-      const atual = novas.get(jogadorId) as {gols: number, assistencias: number, cartoes_amarelos: number, cartoes_vermelhos: number} | undefined;
-      const novoValor = {
-        gols: campo === 'gols' ? valor : (atual?.gols ?? 0),
-        assistencias: campo === 'assistencias' ? valor : (atual?.assistencias ?? 0),
-        cartoes_amarelos: campo === 'cartoes_amarelos' ? valor : (atual?.cartoes_amarelos ?? 0),
-        cartoes_vermelhos: campo === 'cartoes_vermelhos' ? valor : (atual?.cartoes_vermelhos ?? 0)
-      };
-      novas.set(jogadorId, novoValor);
+      const atual = novas.get(jogadorId) || {gols: 0, assistencias: 0, cartoes_amarelos: 0, cartoes_vermelhos: 0};
+      novas.set(jogadorId, { ...atual, [campo]: valor });
       return novas;
     });
   };
 
   const handleCumpriuSuspensao = async (jogadorId: string) => {
-<<<<<<< HEAD
-    const jogador = await db.jogadores.buscarPorId(jogadorId);
-    if (jogador && (jogador.jogos_suspensao || 0) > 0) {
-      const novaSuspensao = (jogador.jogos_suspensao || 0) - 1;
-      if (novaSuspensao <= 0) {
-        await db.jogadores.atualizar(jogadorId, {
-=======
     const jogador = jogadoresPorId.get(jogadorId);
     if (jogador && jogador.jogos_suspensao > 0) {
       const novaSuspensao = jogador.jogos_suspensao - 1;
       if (novaSuspensao <= 0) {
         const atualizado = await db.jogadores.atualizar(jogadorId, {
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
           jogos_suspensao: 0,
           status: 'ativo'
         });
         if (atualizado) setTodosJogadores((atuais) => atuais.map((atual) => atual.id === jogadorId ? atualizado : atual));
       } else {
-<<<<<<< HEAD
-        await db.jogadores.atualizar(jogadorId, {
-=======
         const atualizado = await db.jogadores.atualizar(jogadorId, {
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
           jogos_suspensao: novaSuspensao
         });
         if (atualizado) setTodosJogadores((atuais) => atuais.map((atual) => atual.id === jogadorId ? atualizado : atual));
       }
-      setTodosJogadores(await db.jogadores.listar());
-    }
-  };
-
-  const handleGerarCalendario = async () => {
-    const substituir = jogos.length > 0;
-    if (substituir && !confirm('Isso substituirá somente jogos ainda não realizados. Continuar?')) return;
-    try {
-      const total = await db.jogos.gerarIdaVolta(substituir);
-      setJogos(await db.jogos.listar());
-      alert(`Calendário criado: ${total} jogos, com ida e volta.`);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Não foi possível gerar o calendário.');
     }
   };
 
@@ -595,7 +455,7 @@ export function Admin() {
                               className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs"
                               style={{ backgroundColor: clube.cor_principal }}
                             >
-                              {clube.nome?.charAt(0)}
+                              {clube.nome.charAt(0)}
                             </div>
                           )}
                           <span className="font-medium">{clube.nome}</span>
@@ -639,7 +499,7 @@ export function Admin() {
                       ) : (
                         <div className="flex items-center gap-1">
                           <DollarSign className="w-4 h-4 text-green-500" />
-                          <span className="text-sm font-medium">{clube.orcamento?.toLocaleString('pt-BR')}</span>
+                          <span className="text-sm font-medium">{clube.orcamento.toLocaleString('pt-BR')}</span>
                         </div>
                       )}
                     </td>
@@ -671,14 +531,6 @@ export function Admin() {
 
       {aba === 'jogos' && (
         <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-<<<<<<< HEAD
-          <div className="p-6 border-b border-gray-800">
-            <div className="flex items-start justify-between gap-4">
-              <h2 className="text-lg font-semibold">Gerenciar Jogos</h2>
-              <button onClick={handleGerarCalendario} className="px-4 py-2 bg-yellow-500 text-black font-bold rounded-lg hover:bg-yellow-400">Gerar ida e volta</button>
-            </div>
-            <p className="text-sm text-gray-400 mt-1">Edite os resultados e estatísticas dos jogos</p>
-=======
           <div className="p-6 border-b border-gray-800 flex items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold">Gerenciar Jogos</h2>
@@ -694,7 +546,6 @@ export function Admin() {
                 {gerandoJogos ? 'Gerando...' : 'Gerar Jogos'}
               </button>
             )}
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -710,13 +561,8 @@ export function Admin() {
               </thead>
               <tbody>
                 {jogos.map(jogo => {
-<<<<<<< HEAD
-                  const casa = clubes.find((c: any) => c.id === jogo.clube_casa_id);
-                  const fora = clubes.find((c: any) => c.id === jogo.clube_fora_id);
-=======
                   const casa = clubesPorId.get(jogo.clube_casa_id);
                   const fora = clubesPorId.get(jogo.clube_fora_id);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
                   const isEditing = editingJogoId === jogo.id;
                   
                   return (
@@ -728,7 +574,7 @@ export function Admin() {
                             className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs"
                             style={{ backgroundColor: casa?.cor_principal || '#666' }}
                           >
-                            {casa?.nome?.charAt(0)}
+                            {casa?.nome.charAt(0)}
                           </div>
                           <span className="text-sm">{casa?.nome}</span>
                         </div>
@@ -765,7 +611,7 @@ export function Admin() {
                             className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs"
                             style={{ backgroundColor: fora?.cor_principal || '#666' }}
                           >
-                            {fora?.nome?.charAt(0)}
+                            {fora?.nome.charAt(0)}
                           </div>
                         </div>
                       </td>
@@ -843,15 +689,6 @@ export function Admin() {
             </div>
             
             {(() => {
-<<<<<<< HEAD
-              const jogo = jogos.find((j: any) => j.id === jogoSelecionado);
-              if (!jogo) return null;
-              
-              const clubeCasa = clubes.find((c: any) => c.id === jogo.clube_casa_id);
-              const clubeFora = clubes.find((c: any) => c.id === jogo.clube_fora_id);
-              const jogadoresCasa = todosJogadores.filter((j: any) => j.clube_id === jogo.clube_casa_id);
-              const jogadoresFora = todosJogadores.filter((j: any) => j.clube_id === jogo.clube_fora_id);
-=======
               const jogo = jogosPorId.get(jogoSelecionado);
               if (!jogo) return null;
 
@@ -859,7 +696,6 @@ export function Admin() {
               const jogadoresFora = todosJogadores.filter((jogador) => jogador.clube_id === jogo.clube_fora_id);
               const clubeCasa = clubesPorId.get(jogo.clube_casa_id);
               const clubeFora = clubesPorId.get(jogo.clube_fora_id);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
               
               return (
                 <div className="space-y-6">
@@ -870,12 +706,12 @@ export function Admin() {
                           className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs"
                           style={{ backgroundColor: clubeCasa?.cor_principal }}
                         >
-                          {clubeCasa?.nome?.charAt(0)}
+                          {clubeCasa?.nome.charAt(0)}
                         </div>
                         {clubeCasa?.nome}
                       </h4>
                       <div className="space-y-2">
-                        {jogadoresCasa.map((jogador: any) => {
+                        {jogadoresCasa.map(jogador => {
                           const stats = estatisticasJogo.get(jogador.id) || {gols: 0, assistencias: 0, cartoes_amarelos: 0, cartoes_vermelhos: 0};
                           return (
                             <div key={jogador.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
@@ -939,12 +775,12 @@ export function Admin() {
                           className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs"
                           style={{ backgroundColor: clubeFora?.cor_principal }}
                         >
-                          {clubeFora?.nome?.charAt(0)}
+                          {clubeFora?.nome.charAt(0)}
                         </div>
                         {clubeFora?.nome}
                       </h4>
                       <div className="space-y-2">
-                        {jogadoresFora.map((jogador: any) => {
+                        {jogadoresFora.map(jogador => {
                           const stats = estatisticasJogo.get(jogador.id) || {gols: 0, assistencias: 0, cartoes_amarelos: 0, cartoes_vermelhos: 0};
                           return (
                             <div key={jogador.id} className="flex items-center gap-3 bg-gray-800 rounded-lg p-3">
@@ -1044,13 +880,8 @@ export function Admin() {
                 </tr>
               </thead>
               <tbody>
-<<<<<<< HEAD
-                {todosJogadores.map((jog: any) => {
-                  const clube = clubes.find((c: any) => c.id === jog.clube_id);
-=======
                 {todosJogadores.map(jog => {
                   const clube = clubesPorId.get(jog.clube_id);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
                   return (
                     <tr key={jog.id} className="border-b border-gray-800/50 hover:bg-gray-800/50 transition-colors">
                       <td className="py-4 px-4 font-bold text-sm">{jog.numero}</td>
@@ -1062,7 +893,7 @@ export function Admin() {
                             className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs"
                             style={{ backgroundColor: clube?.cor_principal || '#666' }}
                           >
-                            {clube?.nome?.charAt(0)}
+                            {clube?.nome.charAt(0)}
                           </div>
                           <span className="text-sm">{clube?.nome}</span>
                         </div>
@@ -1077,7 +908,7 @@ export function Admin() {
                           }`}>
                             {jog.status === 'suspenso' ? `Suspenso (${jog.jogos_suspensao} jogos)` : jog.status}
                           </span>
-                          {jog.status === 'suspenso' && (jog.jogos_suspensao || 0) > 0 && (
+                          {jog.status === 'suspenso' && jog.jogos_suspensao > 0 && (
                             <button
                               onClick={() => handleCumpriuSuspensao(jog.id)}
                               className="p-1 text-green-500 hover:text-green-400 transition-colors"

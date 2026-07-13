@@ -13,7 +13,6 @@ export function Elenco() {
   const [novoNome, setNovoNome] = useState('');
   const [novaPosicao, setNovaPosicao] = useState<'Goleiro' | 'Zagueiro' | 'Lateral' | 'Meio-Campo' | 'Atacante'>('Atacante');
   const [novoNumero, setNovoNumero] = useState('');
-  const [novoValor, setNovoValor] = useState('10000000');
   const [fotoJogador, setFotoJogador] = useState<File | null>(null);
   const [clube, setClube] = useState<Clube | null>(null);
   const [jogadores, setJogadores] = useState<Jogador[]>([]);
@@ -24,20 +23,6 @@ export function Elenco() {
   useEffect(() => {
     let ativo = true;
     const fetchData = async () => {
-<<<<<<< HEAD
-      if (!clubeId) return;
-      
-  const [clubeData, jogadoresData, meusClubeData] = await Promise.all([
-    db.clubes.buscarPorId(clubeId),
-    db.jogadores.listar(clubeId),
-    user && isDono && user.clube_id ? db.clubes.buscarPorId(String(user.clube_id)) : Promise.resolve(null)
-  ]);
-      
-      setClube(clubeData || null);
-      setJogadores(jogadoresData);
-      setMeusClube(meusClubeData);
-      setLoading(false);
-=======
       setLoading(true);
       setErro('');
       try {
@@ -68,7 +53,6 @@ export function Elenco() {
     return () => {
       ativo = false;
       window.clearInterval(intervalo);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     };
   }, [clubeId, user, isDono]);
 
@@ -97,7 +81,7 @@ export function Elenco() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!novoNome || !novoNumero || !novoValor || !clubeId) return;
+    if (!novoNome || !novoNumero || !clubeId) return;
 
     let foto_url: string | null = null;
 
@@ -117,7 +101,7 @@ export function Elenco() {
       clube_id: clubeId,
       foto_url,
       status: 'ativo',
-      valor_mercado: parseInt(novoValor),
+      valor_mercado: 10000000,
       jogos_suspensao: 0,
     });
     
@@ -128,7 +112,6 @@ export function Elenco() {
     setShowAdd(false);
     setNovoNome('');
     setNovoNumero('');
-    setNovoValor('10000000');
     setFotoJogador(null);
   };
 
@@ -209,11 +192,6 @@ export function Elenco() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Valor de mercado (R$)</label>
-                <input type="number" value={novoValor} onChange={(e) => setNovoValor(e.target.value)} className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-500" min="0" step="100000" required />
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Foto do Jogador (opcional)
                 </label>
@@ -268,7 +246,7 @@ export function Elenco() {
                 )}
                 <div>
                   <p className="font-medium">{jogador.nome}</p>
-                  <p className="text-sm text-gray-400">{jogador.posicao} · {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(jogador.valor_mercado || 0)}</p>
+                  <p className="text-sm text-gray-400">{jogador.posicao}</p>
                 </div>
               </div>
               {podeEditar && (

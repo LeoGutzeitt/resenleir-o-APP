@@ -15,55 +15,12 @@ export function MeuClube() {
   const [jogos, setJogos] = useState<Jogo[]>([]);
   const [tabela, setTabela] = useState<TabelaLinha[]>([]);
   const [artilharia, setArtilharia] = useState<ArtilheiroRanking[]>([]);
-  const [adversarios, setAdversarios] = useState<Record<string, Clube>>({});
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
   useEffect(() => {
     let ativo = true;
     const fetchData = async () => {
-<<<<<<< HEAD
-      if (!user) return;
-      
-      // Usar clube_id do usuário em vez de buscarPorDono
-      if (!user.clube_id) {
-        setMeusClube(null);
-        setLoading(false);
-        return;
-      }
-      
-      const clube = await db.clubes.buscarPorId(String(user.clube_id));
-      if (!clube) {
-        setMeusClube(null);
-        setLoading(false);
-        return;
-      }
-      
-      const [jogadoresData, jogosData, tabelaData, artilhariaData] = await Promise.all([
-        db.jogadores.listar(String(clube.id)),
-        db.jogos.buscarPorClube(String(clube.id)),
-        db.views.tabela(),
-        db.views.artilharia()
-      ]);
-      
-      // Carregar adversários
-      const adversariosMap: Record<string, Clube> = {};
-      for (const jogo of jogosData) {
-        const advId = jogo.clube_casa_id === clube.id ? jogo.clube_fora_id : jogo.clube_casa_id;
-        if (advId && !adversariosMap[advId]) {
-          const adv = await db.clubes.buscarPorId(String(advId));
-          if (adv) adversariosMap[advId] = adv;
-        }
-      }
-      
-      setMeusClube(clube);
-      setJogadores(jogadoresData);
-      setJogos(jogosData);
-      setTabela(tabelaData);
-      setArtilharia(artilhariaData.filter((a: any) => String(a.clube_id) === String(clube.id)));
-      setAdversarios(adversariosMap);
-      setLoading(false);
-=======
       setLoading(true);
       setErro('');
       try {
@@ -96,7 +53,6 @@ export function MeuClube() {
       } finally {
         if (ativo) setLoading(false);
       }
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     };
     void fetchData();
     return () => { ativo = false; };
@@ -156,7 +112,7 @@ export function MeuClube() {
                 className="w-16 h-16 flex items-center justify-center text-white font-bold text-xl"
                 style={{ backgroundColor: meusClube.cor_principal }}
               >
-                {meusClube.nome?.charAt(0)}
+                {meusClube.nome.charAt(0)}
               </div>
             )}
             <button
@@ -196,7 +152,7 @@ export function MeuClube() {
                     className="w-24 h-24 flex items-center justify-center text-white font-bold text-3xl"
                     style={{ backgroundColor: meusClube.cor_principal }}
                   >
-                    {meusClube.nome?.charAt(0)}
+                    {meusClube.nome.charAt(0)}
                   </div>
                 )}
               </div>
@@ -271,13 +227,8 @@ export function MeuClube() {
         </div>
         <div className="divide-y divide-gray-800">
           {jogos.filter(j => j.status === 'agendado').slice(0, 3).map(jogo => {
-<<<<<<< HEAD
-            const advId = jogo.clube_casa_id === meusClube.id ? jogo.clube_fora_id : jogo.clube_casa_id;
-            const adversario = adversarios[advId] || null;
-=======
             const adversarioId = jogo.clube_casa_id === meusClube.id ? jogo.clube_fora_id : jogo.clube_casa_id;
             const adversario = clubes.find((clube) => clube.id === adversarioId);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
             const isCasa = jogo.clube_casa_id === meusClube.id;
             return (
               <div key={jogo.id} className="p-4 flex items-center justify-between">
@@ -316,14 +267,22 @@ export function MeuClube() {
           </div>
           <div className="divide-y divide-gray-800">
             {artilharia.slice(0, 5).map((j, idx) => {
-<<<<<<< HEAD
-=======
               const jogador = jogadores.find((item) => item.id === j.jogador_id);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
               return (
                 <div key={j.jogador_id} className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-gray-500 w-6">{idx + 1}º</span>
+                    {jogador?.foto_url ? (
+                      <img
+                        src={jogador.foto_url}
+                        alt={jogador.nome}
+                        className="w-8 h-8 object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs bg-gray-800">
+                        {jogador?.numero || '?'}
+                      </div>
+                    )}
                     <span className="font-medium">{j.jogador_nome}</span>
                   </div>
                   <span className="font-bold text-yellow-500">{j.gols} gols</span>

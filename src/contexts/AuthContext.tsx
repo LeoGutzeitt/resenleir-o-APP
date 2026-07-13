@@ -68,73 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
 
-// Helper function to get or create user profile
-  const getUserProfile = async (authUser: { id: string; email?: string }) => {
-    const { data: userData, error: userError } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('id', authUser.id)
-      .single();
-
-    if (userData) {
-      return userData;
-    }
-
-    // If user doesn't have profile, create one
-    if (userError?.code === 'PGRST116' && authUser.email) {
-      const isAdmin = authUser.email === 'admin@resenleirao.com';
-      const clubeMap: Record<string, number | null> = {
-        'leo@resenleirao.com': 1,
-        'felipe@resenleirao.com': 2,
-        'diego@resenleirao.com': 3,
-        'pedro@resenleirao.com': 4,
-        'berenguer@resenleirao.com': 5,
-        'bruno@resenleirao.com': 6,
-        'yves@resenleirao.com': 7,
-        'adriano@resenleirao.com': 8,
-        'jhonny@resenleirao.com': 9,
-        'piscina@resenleirao.com': 10,
-      };
-
-      const { data: newUserData } = await supabase
-        .from('usuarios')
-        .insert({
-          id: authUser.id,
-          email: authUser.email,
-          nome: authUser.email.split('@')[0],
-          role: isAdmin ? 'admin' : 'dono',
-          clube_id: clubeMap[authUser.email] || null
-        })
-        .select()
-        .single();
-
-      return newUserData;
-    }
-
-    return null;
-  };
-
   useEffect(() => {
     const getSession = async () => {
-<<<<<<< HEAD
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const userData = await getUserProfile(session.user);
-        if (userData) {
-          setUser({
-            id: userData.id,
-            email: userData.email,
-            nome: userData.nome,
-            role: userData.role,
-            clube_id: userData.clube_id
-          });
-=======
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           setUser(montarUsuario(session.user));
           void buscarUsuario(session.user).then(setUser);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
         }
       } catch (error) {
         console.error('Não foi possível restaurar a sessão:', error);
@@ -147,25 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-<<<<<<< HEAD
-        const userData = await getUserProfile(session.user);
-        if (userData) {
-          setUser({
-            id: userData.id,
-            email: userData.email,
-            nome: userData.nome,
-            role: userData.role,
-            clube_id: userData.clube_id
-          });
-        }
-=======
         setUser(montarUsuario(session.user));
         // O callback do Auth precisa retornar antes de iniciar outra consulta
         // ao Supabase; caso contrário signInWithPassword pode ficar bloqueado.
         window.setTimeout(() => {
           void buscarUsuario(session.user).then(setUser);
         }, 0);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
       } else {
         setUser(null);
       }
@@ -180,38 +107,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: senha
     });
 
-    if (error) {
-      console.error('Login error:', error.message);
+    if (error || !data.user) {
       return false;
     }
 
-<<<<<<< HEAD
-    if (!data.user) {
-      console.error('No user returned from login');
-      return false;
-    }
-
-    // Buscar ou criar perfil do usuário
-    const userData = await getUserProfile(data.user);
-    
-    if (userData) {
-      setUser({
-        id: userData.id,
-        email: userData.email,
-        nome: userData.nome,
-        role: userData.role,
-        clube_id: userData.clube_id
-      });
-      return true;
-    }
-    
-    console.error('User profile not found and could not be created');
-    return false;
-=======
     setUser(montarUsuario(data.user));
     void buscarUsuario(data.user).then(setUser);
     return true;
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
   };
 
   const logout = async () => {

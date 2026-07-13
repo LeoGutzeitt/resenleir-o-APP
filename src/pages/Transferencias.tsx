@@ -21,30 +21,6 @@ export function Transferencias() {
   const [erro, setErro] = useState('');
 
   useEffect(() => {
-<<<<<<< HEAD
-    const fetchData = async () => {
-      const [meuClubeData, transferenciasData] = await Promise.all([
-        user && isDono && user.clube_id ? db.clubes.buscarPorId(String(user.clube_id)) : Promise.resolve(null),
-        db.transferencias.listar()
-      ]);
-      
-      // Carregar dados das transferências
-      const transferenciasComDados = await Promise.all(
-        transferenciasData.map(async (t) => {
-          const [jogador, origem, destino, jogadorTroca] = await Promise.all([
-            db.jogadores.buscarPorId(t.jogador_id),
-            db.clubes.buscarPorId(t.clube_origem_id),
-            db.clubes.buscarPorId(t.clube_destino_id),
-            t.jogador_troca_id ? db.jogadores.buscarPorId(t.jogador_troca_id) : Promise.resolve(null)
-          ]);
-          return { ...t, jogador, origem, destino, jogadorTroca };
-        })
-      );
-      
-      setMeusClube(meuClubeData || null);
-      setTransferenciasComDados(transferenciasComDados);
-      setLoading(false);
-=======
     let ativo = true;
     const fetchData = async (mostrarLoading = true) => {
       if (mostrarLoading) setLoading(true);
@@ -80,7 +56,6 @@ export function Transferencias() {
     return () => {
       ativo = false;
       window.clearInterval(intervalo);
->>>>>>> 702690a7763f707c4d59175d952155e1881f56d3
     };
   }, [user, isDono]);
 
