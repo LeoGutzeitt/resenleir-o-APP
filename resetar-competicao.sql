@@ -4,8 +4,8 @@
 
 begin;
 
-delete from public.estatisticas where id is not null;
-delete from public.jogos where id is not null;
+delete from public.estatisticas;
+delete from public.jogos;
 
 commit;
 
